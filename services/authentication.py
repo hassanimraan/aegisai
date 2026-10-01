@@ -1,4 +1,5 @@
 import streamlit as st
+
 from database.supabase_client import get_supabase
 
 
@@ -31,6 +32,7 @@ def signup_user(email, password):
         })
 
         if response.user:
+            st.session_state["user"] = response.user
             return True, "Account created successfully."
 
         return False, "Account creation failed."
