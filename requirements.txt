@@ -1,0 +1,7 @@
+streamlit
+supabase
+google-generativeai
+pypdf
+python-dotenv
+pandas
+reportlab
