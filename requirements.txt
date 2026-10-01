@@ -1,7 +1,8 @@
 streamlit
 supabase
-google-generativeai
+google-genai
 pypdf
-python-dotenv
 pandas
+numpy
+scikit-learn
 reportlab
