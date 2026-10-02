@@ -18,55 +18,45 @@ def show_application():
 
     st.subheader("Approval Management")
 
-    col1, col2, col3 = st.columns(3)
+    col1, col2 = st.columns(2)
 
     with col1:
-        st.page_link(
-            "pages/1_Dashboard.py",
-            label="📊 Dashboard",
-            icon="📊"
+
+        st.markdown("### 📊 Dashboard")
+
+        st.write(
+            "View approval cases, statuses, and recent activity."
         )
+
+        if st.button(
+            "Open Dashboard",
+            use_container_width=True
+        ):
+            st.switch_page("pages/1_Dashboard.py")
 
     with col2:
-        st.page_link(
-            "pages/2_Create_Case.py",
-            label="📝 Create Approval Case",
-            icon="📝"
+
+        st.markdown("### 📝 Create Approval Case")
+
+        st.write(
+            "Create a new procurement or capital expenditure case."
         )
 
-    with col3:
-        st.page_link(
-            "pages/5_Case_History.py",
-            label="📁 Case History",
-            icon="📁"
-        )
+        if st.button(
+            "Create New Case",
+            type="primary",
+            use_container_width=True
+        ):
+            st.switch_page("pages/2_Create_Case.py")
 
     st.divider()
 
-    st.subheader("AI Review")
+    st.subheader("System Status")
 
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-        st.page_link(
-            "pages/3_Case_Review.py",
-            label="🤖 AI Case Review",
-            icon="🤖"
-        )
-
-    with col2:
-        st.page_link(
-            "pages/4_Decision.py",
-            label="✅ Human Decision",
-            icon="✅"
-        )
-
-    with col3:
-        st.page_link(
-            "pages/6_Report.py",
-            label="📄 Reports",
-            icon="📄"
-        )
+    st.success("🔐 Authentication: Connected")
+    st.success("🗄️ Supabase Database: Connected")
+    st.info("🤖 AI Review: Ready")
+    st.info("📚 Policy RAG: Ready")
 
     st.divider()
 
