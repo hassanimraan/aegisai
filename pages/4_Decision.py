@@ -22,7 +22,11 @@ st.set_page_config(
 # ---------------------------------------------------------
 
 if "user" not in st.session_state:
-    st.warning("Please log in from the main AegisAI page.")
+
+    st.warning(
+        "Please log in from the main AegisAI page."
+    )
+
     st.stop()
 
 
@@ -41,10 +45,15 @@ st.divider()
 # ---------------------------------------------------------
 
 try:
+
     supabase = get_supabase()
 
 except Exception as e:
-    st.error(f"Unable to connect to Supabase: {e}")
+
+    st.error(
+        f"Unable to connect to Supabase: {e}"
+    )
+
     st.stop()
 
 
@@ -72,19 +81,25 @@ try:
     cases = response.data or []
 
 except Exception as e:
-    st.error(f"Unable to load cases: {e}")
+
+    st.error(
+        f"Unable to load cases: {e}"
+    )
+
     st.stop()
 
 
 if not cases:
+
     st.info(
         "No approval cases are available for human review."
     )
+
     st.stop()
 
 
 case_options = {
-    f"{case['title']} — PKR {case['amount']}": case
+    f"{case['title']} — PKR {float(case['amount']):,.0f}": case
     for case in cases
 }
 
@@ -106,13 +121,22 @@ st.subheader("📋 Case Information")
 col1, col2, col3 = st.columns(3)
 
 with col1:
-    st.write(f"**Title:** {case['title']}")
+
+    st.write(
+        f"**Title:** {case['title']}"
+    )
 
 with col2:
-    st.write(f"**Department:** {case['department']}")
+
+    st.write(
+        f"**Department:** {case['department']}"
+    )
 
 with col3:
-    st.write(f"**Amount:** PKR {case['amount']}")
+
+    st.write(
+        f"**Amount:** PKR {float(case['amount']):,.0f}"
+    )
 
 
 st.write(
@@ -120,6 +144,21 @@ st.write(
 )
 
 st.divider()
+
+
+# ---------------------------------------------------------
+# Reset Chat When Case Changes
+# ---------------------------------------------------------
+
+current_case_id = case["id"]
+
+if st.session_state.get(
+    "decision_chat_case_id"
+) != current_case_id:
+
+    st.session_state["decision_chat_case_id"] = current_case_id
+
+    st.session_state["decision_chat_messages"] = []
 
 
 # ---------------------------------------------------------
@@ -134,7 +173,7 @@ try:
         .select("*")
         .eq(
             "case_id",
-            case["id"]
+            current_case_id
         )
         .order(
             "created_at",
@@ -147,9 +186,11 @@ try:
     reviews = review_response.data or []
 
 except Exception as e:
+
     st.error(
         f"Unable to load AI review: {e}"
     )
+
     st.stop()
 
 
@@ -160,85 +201,12 @@ if not reviews:
     )
 
     st.info(
-        "Temporary development mode: create a test AI review "
-        "without calling Gemini."
+        "This case must complete the AI review workflow "
+        "before a human final decision can be recorded."
     )
 
-    if st.button(
-        "🧪 Create Temporary Test Review",
-        type="secondary",
-        use_container_width=True
-    ):
-
-        test_synthesis = """
-OVERALL STATUS: ATTENTION
-
-EXECUTIVE SUMMARY:
-The PKR 4,800,000 Industrial Testing procurement request
-has documentation and financial process gaps. The supplied
-Purchase Request is consistent with the requested amount,
-but mandatory procurement documentation and financial review
-evidence are not yet available.
-
-COMPLIANCE ASSESSMENT:
-ATTENTION — Mandatory procurement documentation is incomplete.
-
-FINANCIAL ASSESSMENT:
-ATTENTION — Financial review evidence and budget information
-are not available.
-
-RISK ASSESSMENT:
-MEDIUM — Documentation and procurement process risks require
-clarification. No confirmed misconduct or material financial
-discrepancy has been identified.
-
-KEY FINDINGS:
-- Three vendor quotations are required.
-- Technical evaluation is required.
-- Comparative statement is required.
-- Financial review evidence is missing.
-- General Manager approval applies to this amount under
-  POL-003 DA-03.
-- Human review is required.
-
-AI RECOMMENDATION:
-RETURN FOR CLARIFICATION
-
-HUMAN REVIEW REQUIRED:
-YES
-"""
-
-        try:
-
-            supabase.table("ai_reviews").insert(
-                {
-                    "case_id": case["id"],
-                    "compliance_result":
-                        "ATTENTION — Mandatory procurement documentation is incomplete.",
-                    "financial_result":
-                        "ATTENTION — Financial review evidence is missing.",
-                    "risk_result":
-                        "MEDIUM — Documentation and procurement process risks require clarification.",
-                    "synthesis":
-                        test_synthesis,
-                    "recommendation":
-                        "RETURN FOR CLARIFICATION"
-                }
-            ).execute()
-
-            st.success(
-                "✅ Temporary test AI review created."
-            )
-
-            st.rerun()
-
-        except Exception as e:
-
-            st.error(
-                f"Unable to create test review: {e}"
-            )
-
     st.stop()
+
 
 review = reviews[0]
 
@@ -274,6 +242,7 @@ with st.expander(
 
 st.divider()
 
+
 # ---------------------------------------------------------
 # Grounded Chatbot
 # ---------------------------------------------------------
@@ -298,7 +267,7 @@ try:
         .select("*")
         .eq(
             "case_id",
-            case["id"]
+            current_case_id
         )
         .execute()
     )
@@ -315,21 +284,17 @@ except Exception as e:
 
 
 # ---------------------------------------------------------
-# Initialize Chat History
-# ---------------------------------------------------------
-
-if "decision_chat_messages" not in st.session_state:
-
-    st.session_state["decision_chat_messages"] = []
-
-
-# ---------------------------------------------------------
 # Display Previous Messages
 # ---------------------------------------------------------
 
-for message in st.session_state["decision_chat_messages"]:
+for message in st.session_state.get(
+    "decision_chat_messages",
+    []
+):
 
-    with st.chat_message(message["role"]):
+    with st.chat_message(
+        message["role"]
+    ):
 
         st.write(
             message["content"]
@@ -351,15 +316,16 @@ send_question = st.button(
     type="primary"
 )
 
+
 # ---------------------------------------------------------
 # Process Question
 # ---------------------------------------------------------
 
 if send_question and question.strip():
 
-    # Save user message
-
-    st.session_state["decision_chat_messages"].append(
+    st.session_state[
+        "decision_chat_messages"
+    ].append(
         {
             "role": "user",
             "content": question
@@ -368,7 +334,9 @@ if send_question and question.strip():
 
     with st.chat_message("user"):
 
-        st.write(question)
+        st.write(
+            question
+        )
 
 
     try:
@@ -536,10 +504,14 @@ Do not provide a final human decision.
 
         with st.chat_message("assistant"):
 
-            st.write(answer)
+            st.write(
+                answer
+            )
 
 
-        # Save assistant response
+        # -------------------------------------------------
+        # Save Assistant Response
+        # -------------------------------------------------
 
         st.session_state[
             "decision_chat_messages"
@@ -559,6 +531,8 @@ Do not provide a final human decision.
 
 
 st.divider()
+
+
 # ---------------------------------------------------------
 # Human Decision
 # ---------------------------------------------------------
@@ -571,28 +545,8 @@ st.warning(
 )
 
 
-decision = st.radio(
-    "Select Decision",
-    [
-        "Approve",
-        "Return",
-        "Reject"
-    ],
-    horizontal=True
-)
-
-
-comments = st.text_area(
-    "Reviewer Comments",
-    placeholder="Enter your decision comments..."
-)
-
 # ---------------------------------------------------------
-# Submit Human Decision
-# ---------------------------------------------------------
-
-# ---------------------------------------------------------
-# Check whether a final decision already exists
+# Check Existing Human Decision
 # ---------------------------------------------------------
 
 try:
@@ -600,10 +554,12 @@ try:
     existing_decision_response = (
         supabase
         .table("decisions")
-        .select("id, decision, created_at")
+        .select(
+            "id, decision, comments, created_at"
+        )
         .eq(
             "case_id",
-            case["id"]
+            current_case_id
         )
         .order(
             "created_at",
@@ -627,7 +583,7 @@ except Exception as e:
 
 
 # ---------------------------------------------------------
-# If a final decision already exists
+# Existing Final Decision
 # ---------------------------------------------------------
 
 if existing_decisions:
@@ -639,16 +595,44 @@ if existing_decisions:
         f"{previous_decision.get('decision', 'N/A')}"
     )
 
+    st.write(
+        f"**Decision Date:** "
+        f"{previous_decision.get('created_at', 'N/A')}"
+    )
+
+    st.write(
+        f"**Reviewer Comments:** "
+        f"{previous_decision.get('comments') or 'None'}"
+    )
+
     st.info(
         "This case has already received a final human decision. "
         "A second final decision cannot be submitted."
     )
 
+
+# ---------------------------------------------------------
+# New Human Decision
+# ---------------------------------------------------------
+
 else:
 
-    # -----------------------------------------------------
-    # Reviewer comments requirement
-    # -----------------------------------------------------
+    decision = st.radio(
+        "Select Decision",
+        [
+            "Approve",
+            "Return",
+            "Reject"
+        ],
+        horizontal=True
+    )
+
+
+    comments = st.text_area(
+        "Reviewer Comments",
+        placeholder="Enter your decision comments..."
+    )
+
 
     if decision in ["Return", "Reject"] and not comments.strip():
 
@@ -684,7 +668,7 @@ else:
 
             supabase.table("decisions").insert(
                 {
-                    "case_id": case["id"],
+                    "case_id": current_case_id,
                     "reviewer_id": st.session_state["user"].id,
                     "decision": decision,
                     "comments": comments.strip()
@@ -704,13 +688,14 @@ else:
 
             new_status = status_map[decision]
 
+
             supabase.table("cases").update(
                 {
                     "status": new_status
                 }
             ).eq(
                 "id",
-                case["id"]
+                current_case_id
             ).execute()
 
 
@@ -720,7 +705,7 @@ else:
 
             supabase.table("audit_logs").insert(
                 {
-                    "case_id": case["id"],
+                    "case_id": current_case_id,
                     "user_id": st.session_state["user"].id,
                     "action": f"HUMAN_DECISION_{decision.upper()}",
                     "details": (
@@ -743,6 +728,8 @@ else:
             st.info(
                 f"Case status updated to: {new_status}"
             )
+
+            st.rerun()
 
 
         except Exception as e:
