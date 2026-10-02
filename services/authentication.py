@@ -8,7 +8,7 @@ def login_user(email, password):
 
     try:
         response = supabase.auth.sign_in_with_password({
-            "email": email,
+            "email": email.strip(),
             "password": password
         })
 
@@ -22,13 +22,18 @@ def login_user(email, password):
         return False, str(e)
 
 
-def signup_user(email, password):
+def signup_user(name, email, password):
     supabase = get_supabase()
 
     try:
         response = supabase.auth.sign_up({
-            "email": email,
-            "password": password
+            "email": email.strip(),
+            "password": password,
+            "options": {
+                "data": {
+                    "full_name": name.strip()
+                }
+            }
         })
 
         if response.user:
