@@ -622,9 +622,9 @@ if st.button(
         supabase.table("decisions").insert(
             {
                 "case_id": case["id"],
+                "reviewer_id": st.session_state["user"].id,
                 "decision": decision,
-                "comments": comments.strip(),
-                "decided_by": st.session_state["user"].id
+                "comments": comments.strip()
             }
         ).execute()
 
