@@ -160,11 +160,85 @@ if not reviews:
     )
 
     st.info(
-        "Run the AI review before making a human decision."
+        "Temporary development mode: create a test AI review "
+        "without calling Gemini."
     )
 
-    st.stop()
+    if st.button(
+        "🧪 Create Temporary Test Review",
+        type="secondary",
+        use_container_width=True
+    ):
 
+        test_synthesis = """
+OVERALL STATUS: ATTENTION
+
+EXECUTIVE SUMMARY:
+The PKR 4,800,000 Industrial Testing procurement request
+has documentation and financial process gaps. The supplied
+Purchase Request is consistent with the requested amount,
+but mandatory procurement documentation and financial review
+evidence are not yet available.
+
+COMPLIANCE ASSESSMENT:
+ATTENTION — Mandatory procurement documentation is incomplete.
+
+FINANCIAL ASSESSMENT:
+ATTENTION — Financial review evidence and budget information
+are not available.
+
+RISK ASSESSMENT:
+MEDIUM — Documentation and procurement process risks require
+clarification. No confirmed misconduct or material financial
+discrepancy has been identified.
+
+KEY FINDINGS:
+- Three vendor quotations are required.
+- Technical evaluation is required.
+- Comparative statement is required.
+- Financial review evidence is missing.
+- General Manager approval applies to this amount under
+  POL-003 DA-03.
+- Human review is required.
+
+AI RECOMMENDATION:
+RETURN FOR CLARIFICATION
+
+HUMAN REVIEW REQUIRED:
+YES
+"""
+
+        try:
+
+            supabase.table("ai_reviews").insert(
+                {
+                    "case_id": case["id"],
+                    "compliance_result":
+                        "ATTENTION — Mandatory procurement documentation is incomplete.",
+                    "financial_result":
+                        "ATTENTION — Financial review evidence is missing.",
+                    "risk_result":
+                        "MEDIUM — Documentation and procurement process risks require clarification.",
+                    "synthesis":
+                        test_synthesis,
+                    "recommendation":
+                        "RETURN FOR CLARIFICATION"
+                }
+            ).execute()
+
+            st.success(
+                "✅ Temporary test AI review created."
+            )
+
+            st.rerun()
+
+        except Exception as e:
+
+            st.error(
+                f"Unable to create test review: {e}"
+            )
+
+    st.stop()
 
 review = reviews[0]
 
