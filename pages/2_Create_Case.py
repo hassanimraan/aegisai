@@ -1,4 +1,3 @@
-```python
 import streamlit as st
 
 from services.ai_review import run_ai_case_review
@@ -594,4 +593,3 @@ if (
                 st.caption(
                     item["reason"]
                 )
-```
