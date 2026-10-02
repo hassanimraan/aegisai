@@ -248,6 +248,10 @@ def show_application():
 
     col1, col2 = st.columns(2)
 
+    # ======================================
+    # DASHBOARD CARD
+    # ======================================
+
     with col1:
 
         st.markdown("### 📊 Dashboard")
@@ -257,49 +261,67 @@ def show_application():
             "and recent activity."
         )
 
+        if st.button(
+            "Open Dashboard",
+            use_container_width=True
+        ):
+
+            st.switch_page(
+                "pages/1_Dashboard.py"
+            )
+
+    # ======================================
+    # CREATE CASE CARD
+    # ======================================
+
     with col2:
 
-    st.markdown(
-        "### 📝 Create Approval Case"
-    )
-
-    st.write(
-        "Create a procurement or capital "
-        "expenditure approval case."
-    )
-
-    if st.button(
-        "➕ Create New Case",
-        type="primary",
-        use_container_width=True
-    ):
-
-        st.switch_page(
-            "pages/2_Create_Case.py"
+        st.markdown(
+            "### 📝 Create Approval Case"
         )
 
+        st.write(
+            "Create a procurement or capital "
+            "expenditure approval case."
+        )
+
+        if st.button(
+            "➕ Create New Case",
+            type="primary",
+            use_container_width=True
+        ):
+
+            st.switch_page(
+                "pages/2_Create_Case.py"
+            )
+
     st.divider()
+
+    # ======================================
+    # SYSTEM STATUS
+    # ======================================
 
     st.subheader("System Status")
 
     col1, col2, col3 = st.columns(3)
 
     with col1:
+
         st.success(
             "🔐 Authentication\n\nConnected"
         )
 
     with col2:
+
         st.success(
             "🗄️ Supabase Database\n\nConnected"
         )
 
     with col3:
+
         st.info(
             "🤖 AI Review\n\nReady"
         )
-
-
 # ==========================================
 # ENTRY POINT
 # ==========================================
