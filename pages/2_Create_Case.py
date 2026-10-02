@@ -17,7 +17,10 @@ st.set_page_config(
 # AUTH CHECK
 # ==========================================
 
-if "user" not in st.session_state:
+if (
+    "user" not in st.session_state
+    or st.session_state["user"] is None
+):
     st.warning("Please login first.")
     st.stop()
 
@@ -156,7 +159,6 @@ if submitted:
 
             st.session_state["current_case_id"] = case_id
 
-            # Clear any review belonging to a previous case
             st.session_state.pop(
                 "ai_case_review",
                 None
@@ -265,7 +267,7 @@ if "current_case_id" in st.session_state:
 
                     st.warning(
                         "No selectable text was found in this PDF. "
-                        "OCR will be added in a later processing step."
+                        "OCR is not available in the current MVP."
                     )
 
                     st.stop()
@@ -491,13 +493,11 @@ if "current_case_id" in st.session_state:
                         ""
                     ),
 
-                    # Persist policy-driven evidence requirements
                     "requirements": review.get(
                         "requirements",
                         []
                     ),
 
-                    # Persist Evidence Gate status
                     "evidence_gate": review.get(
                         "evidence_gate",
                         {}
@@ -616,3 +616,4 @@ if (
                 st.caption(
                     item["reason"]
                 )
+```
