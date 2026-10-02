@@ -1,4 +1,5 @@
 import streamlit as st
+from services.ai_review import run_ai_case_review
 from pypdf import PdfReader
 
 from database.supabase_client import get_supabase
@@ -222,6 +223,73 @@ if "current_case_id" in st.session_state:
 
             try:
 
+                st.divider()
+
+st.subheader("🤖 AI Case Review")
+
+st.info(
+    "Upload the available case documents first, then run "
+    "AI Case Review. A policy-driven evidence gate will "
+    "identify missing mandatory evidence."
+)
+
+if st.button(
+    "🚀 Run AI Case Review",
+    type="primary",
+    use_container_width=True
+):
+
+    try:
+
+        case_response = (
+            supabase
+            .table("cases")
+            .select("*")
+            .eq("id", st.session_state["current_case_id"])
+            .single()
+            .execute()
+        )
+
+        current_case = case_response.data
+
+        document_response = (
+            supabase
+            .table("documents")
+            .select("*")
+            .eq(
+                "case_id",
+                st.session_state["current_case_id"]
+            )
+            .execute()
+        )
+
+        current_documents = (
+            document_response.data or []
+        )
+
+        with st.spinner(
+            "Running AI Case Review..."
+        ):
+
+            review = run_ai_case_review(
+                current_case,
+                current_documents
+            )
+
+        st.session_state["ai_case_review"] = review
+        st.session_state["ai_case_review_id"] = (
+            st.session_state["current_case_id"]
+        )
+
+        st.success(
+            "AI Case Review completed."
+        )
+
+    except Exception as e:
+
+        st.error(
+            f"AI review failed: {str(e)}"
+        )
                 # ------------------------------
                 # READ PDF
                 # ------------------------------
