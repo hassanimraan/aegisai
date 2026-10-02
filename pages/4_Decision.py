@@ -588,6 +588,10 @@ comments = st.text_area(
 )
 
 
+# ---------------------------------------------------------
+# Submit Human Decision
+# ---------------------------------------------------------
+
 if decision in ["Return", "Reject"] and not comments.strip():
 
     st.info(
@@ -609,12 +613,77 @@ if st.button(
 
         st.stop()
 
+    try:
 
-    st.success(
-        f"Human decision selected: {decision}"
-    )
+        # -------------------------------------------------
+        # Save Human Decision
+        # -------------------------------------------------
 
-    st.info(
-        "Decision saving and audit trail will be connected "
-        "in the next step."
-    )
+        supabase.table("decisions").insert(
+            {
+                "case_id": case["id"],
+                "decision": decision,
+                "comments": comments.strip(),
+                "decided_by": st.session_state["user"].id
+            }
+        ).execute()
+
+
+        # -------------------------------------------------
+        # Update Case Status
+        # -------------------------------------------------
+
+        status_map = {
+            "Approve": "APPROVED",
+            "Return": "RETURNED",
+            "Reject": "REJECTED"
+        }
+
+        new_status = status_map[decision]
+
+        supabase.table("cases").update(
+            {
+                "status": new_status
+            }
+        ).eq(
+            "id",
+            case["id"]
+        ).execute()
+
+
+        # -------------------------------------------------
+        # Create Audit Log
+        # -------------------------------------------------
+
+        supabase.table("audit_logs").insert(
+            {
+                "case_id": case["id"],
+                "user_id": st.session_state["user"].id,
+                "action": f"HUMAN_DECISION_{decision.upper()}",
+                "details": (
+                    f"Human reviewer selected {decision}. "
+                    f"Comments: "
+                    f"{comments.strip() or 'None'}"
+                )
+            }
+        ).execute()
+
+
+        # -------------------------------------------------
+        # Confirmation
+        # -------------------------------------------------
+
+        st.success(
+            f"✅ Human decision saved successfully: {decision}"
+        )
+
+        st.info(
+            f"Case status updated to: {new_status}"
+        )
+
+
+    except Exception as e:
+
+        st.error(
+            f"Unable to save the human decision: {e}"
+        )
