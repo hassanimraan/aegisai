@@ -340,10 +340,16 @@ for message in st.session_state["decision_chat_messages"]:
 # Chat Input
 # ---------------------------------------------------------
 
-question = st.chat_input(
-    "Ask about this case or its applicable policies..."
+question = st.text_input(
+    "Ask a question",
+    placeholder="Why does this case require three vendor quotations?",
+    key="decision_chat_input"
 )
 
+send_question = st.button(
+    "Send Question",
+    type="primary"
+)
 
 # ---------------------------------------------------------
 # Process Question
