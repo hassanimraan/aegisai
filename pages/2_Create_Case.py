@@ -452,41 +452,55 @@ if "current_case_id" in st.session_state:
             st.session_state["ai_case_review"] = review
             st.session_state["ai_case_review_id"] = case_id
 
-            # ------------------------------------------
-            # SAVE AI REVIEW
-            #
-            # IMPORTANT:
-            # This uses the existing ai_reviews table.
-            # If your table uses different column names,
-            # we will adjust only this block.
-            # ------------------------------------------
+# ------------------------------------------
+# SAVE AI REVIEW
+# ------------------------------------------
 
-            synthesis = review.get(
-                "synthesis",
-                ""
-            )
+ai_review_response = (
+    supabase
+    .table("ai_reviews")
+    .insert({
+        "case_id": case_id,
 
-            ai_review_response = (
-                supabase
-                .table("ai_reviews")
-                .insert({
-                    "case_id": case_id,
-                    "compliance_result": review.get(
-                        "compliance",
-                        ""
-                    ),
-                    "financial_result": review.get(
-                        "financial",
-                        ""
-                    ),
-                    "risk_result": review.get(
-                        "risk",
-                        ""
-                    ),
-                    "synthesis": synthesis
-                })
-                .execute()
-            )
+        "compliance_result": review.get(
+            "compliance",
+            ""
+        ),
+
+        "financial_result": review.get(
+            "financial",
+            ""
+        ),
+
+        "risk_result": review.get(
+            "risk",
+            ""
+        ),
+
+        "synthesis": review.get(
+            "synthesis",
+            ""
+        ),
+
+        "recommendation": review.get(
+            "synthesis",
+            ""
+        ),
+
+        # Persist policy-driven evidence requirements
+        "requirements": review.get(
+            "requirements",
+            []
+        ),
+
+        # Persist Evidence Gate status
+        "evidence_gate": review.get(
+            "evidence_gate",
+            {}
+        )
+    })
+    .execute()
+)
 
             if not ai_review_response.data:
 
