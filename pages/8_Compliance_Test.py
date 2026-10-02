@@ -1,0 +1,151 @@
+import streamlit as st
+
+from agents.compliance_agent import run_compliance_agent
+from rag.retriever import search_policies
+from database.supabase_client import get_supabase
+
+
+st.set_page_config(
+    page_title="Compliance Test - AegisAI",
+    page_icon="✅",
+    layout="wide"
+)
+
+st.title("✅ AegisAI Compliance Agent Test")
+st.write(
+    "Test the Compliance Agent using a case and its uploaded documents."
+)
+
+if "user" not in st.session_state:
+    st.warning("Please login first.")
+    st.stop()
+
+supabase = get_supabase()
+user_id = st.session_state["user"].id
+
+cases_response = (
+    supabase
+    .table("cases")
+    .select("*")
+    .eq("user_id", user_id)
+    .order("created_at", desc=True)
+    .execute()
+)
+
+cases = cases_response.data or []
+
+if not cases:
+    st.info("No approval cases found. Create a case first.")
+    st.stop()
+
+case_options = {
+    f"{case['title']} — PKR {case['amount']:,.0f}": case
+    for case in cases
+}
+
+selected_label = st.selectbox(
+    "Select approval case",
+    list(case_options.keys())
+)
+
+case = case_options[selected_label]
+
+st.subheader("Case Information")
+
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    st.write(f"**Title:** {case['title']}")
+
+with col2:
+    st.write(f"**Department:** {case['department']}")
+
+with col3:
+    st.write(f"**Amount:** PKR {case['amount']:,.0f}")
+
+st.divider()
+
+documents_response = (
+    supabase
+    .table("documents")
+    .select("*")
+    .eq("case_id", case["id"])
+    .execute()
+)
+
+documents = documents_response.data or []
+
+st.subheader("Uploaded Documents")
+
+if not documents:
+    st.warning("No documents uploaded for this case.")
+    st.stop()
+
+for document in documents:
+    st.write(
+        f"📄 **{document['document_name']}** "
+        f"({document['document_type']})"
+    )
+
+st.divider()
+
+if st.button(
+    "🤖 Run Compliance Agent",
+    type="primary",
+    use_container_width=True
+):
+
+    try:
+        with st.spinner(
+            "Retrieving policies and running Compliance Agent..."
+        ):
+
+            query = f"""
+            Review procurement compliance for a {case['amount']} PKR
+            approval request in the {case['department']} department.
+            Check required procurement documents, vendor quotations,
+            technical evaluation, comparative statement,
+            approval requirements, and relevant compliance rules.
+            """
+
+            policy_evidence = search_policies(
+                query,
+                top_k=8
+            )
+
+            result = run_compliance_agent(
+                case_data=case,
+                documents=documents,
+                policy_evidence=policy_evidence
+            )
+
+        st.success("Compliance Agent completed successfully.")
+
+        st.subheader("Compliance Assessment")
+
+        st.markdown(result)
+
+        st.divider()
+
+        st.subheader("Retrieved Policy Evidence")
+
+        for index, item in enumerate(
+            policy_evidence,
+            start=1
+        ):
+            st.markdown(
+                f"**{index}. {item['policy_id']} — "
+                f"{item['section_id']} — "
+                f"{item['section_title']}**"
+            )
+
+            st.write(
+                f"Similarity: {item['similarity']:.4f}"
+            )
+
+            st.info(item["content"])
+
+    except Exception as e:
+        st.error(
+            f"Compliance Agent test failed: {str(e)}"
+        )
