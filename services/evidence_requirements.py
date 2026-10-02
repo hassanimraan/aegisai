@@ -1,24 +1,21 @@
 """
 AegisAI - Policy-Driven Evidence Requirements
 
-This module determines case evidence requirements from:
-    1. The applicable PEIS policy evidence retrieved by RAG.
-    2. The case amount and description.
-    3. The documents already uploaded for the case.
+Final production evidence-requirement engine.
 
-Important design principle:
-    AegisAI must NOT assume a universal document checklist.
-
-For example:
-    - A competitive procurement above PKR 500,000 requires
-      at least 3 vendor quotations under POL-001 / POL-004.
-    - A case that qualifies for an approved single-source
-      exception should not automatically be forced to provide
-      3 quotations.
-    - Technical Evaluation is conditional on specialized or
-      technically complex procurement.
-    - If the supplied policy does not establish a requirement,
-      this module should not invent one.
+Design principles:
+1. Requirements are derived from retrieved PEIS policy evidence
+   and the actual case context.
+2. AegisAI must NOT impose a universal document checklist.
+3. Quotation requirements apply only when the supplied policy
+   establishes the applicable threshold/rule.
+4. A single-source route does NOT remove the quotation requirement
+   merely because the words "single source" appear somewhere.
+   There must be explicit justification/approval evidence.
+5. Conditional requirements such as Technical Evaluation are
+   activated only when the policy and case context support them.
+6. AI analysis itself is never treated as documentary evidence.
+7. The returned objects are JSON-serializable for Supabase JSONB.
 """
 
 import re
@@ -36,7 +33,20 @@ def _text(value):
 def _amount(case_data):
     """Safely convert case amount to float."""
     try:
-        return float(case_data.get("amount") or 0)
+        value = case_data.get("amount")
+        if value is None or str(value).strip() == "":
+            return 0.0
+
+        cleaned = (
+            str(value)
+            .replace(",", "")
+            .replace("PKR", "")
+            .replace("pkr", "")
+            .strip()
+        )
+
+        return float(cleaned)
+
     except (TypeError, ValueError):
         return 0.0
 
@@ -60,9 +70,7 @@ def _document_text(document):
 
 
 def _all_policy_text(policy_evidence):
-    """
-    Combine retrieved policy evidence into one normalized string.
-    """
+    """Combine retrieved policy evidence into normalized text."""
     return "\n".join(
         _text(item.get("content"))
         for item in policy_evidence
@@ -71,7 +79,7 @@ def _all_policy_text(policy_evidence):
 
 
 def _has_policy_phrase(policy_text, phrases):
-    """Return True if any supplied phrase exists in policy text."""
+    """Return True when any supplied phrase exists in policy text."""
     return any(
         phrase.lower() in policy_text
         for phrase in phrases
@@ -79,10 +87,7 @@ def _has_policy_phrase(policy_text, phrases):
 
 
 def _has_document_type(documents, document_type):
-    """
-    Check whether at least one uploaded document has the
-    specified document type.
-    """
+    """Check whether at least one document has the specified type."""
     target = _text(document_type)
 
     return any(
@@ -92,9 +97,7 @@ def _has_document_type(documents, document_type):
 
 
 def _document_count(documents, document_type):
-    """
-    Count uploaded documents of a specific type.
-    """
+    """Count uploaded documents of a specific type."""
     target = _text(document_type)
 
     return sum(
@@ -104,84 +107,13 @@ def _document_count(documents, document_type):
     )
 
 
-def _has_financial_review_evidence(documents):
-    """
-    Determine whether an uploaded document contains explicit
-    evidence of a financial review.
+# ==========================================================
+# CASE CONTEXT
+# ==========================================================
 
-    The AI agent's own analysis does NOT count as evidence.
-    """
-    financial_phrases = [
-        "financial review",
-        "finance review",
-        "reviewed by finance",
-        "reviewed by finance department",
-        "finance department review",
-        "financially reviewed",
-        "financial approval",
-    ]
-
-    for document in documents:
-
-        text = _document_text(document)
-
-        if any(
-            phrase in text
-            for phrase in financial_phrases
-        ):
-            return True
-
-    return False
-
-
-def _has_single_source_exception(documents, case_text):
-    """
-    Detect whether the supplied case/document evidence indicates
-    a documented single-source exception.
-
-    This does NOT decide whether the exception is valid or approved.
-    It only identifies evidence that may affect the quotation
-    requirement.
-
-    Final compliance remains the responsibility of the agents
-    and human reviewer.
-    """
-
-    exception_phrases = [
-        "single source",
-        "single-source",
-        "sole source",
-        "sole-source",
-        "single vendor",
-        "single-vendor",
-        "approved single source",
-        "approved single-source",
-        "single source justification",
-        "single-source justification",
-    ]
-
-    combined_text = case_text
-
-    for document in documents:
-        combined_text += " " + _document_text(document)
-
-    return any(
-        phrase in combined_text
-        for phrase in exception_phrases
-    )
-
-
-def _is_specialized_procurement(case_data):
-    """
-    Identify whether the case appears to involve specialized,
-    technical, engineering, industrial, or technically complex
-    procurement.
-
-    This is a case-context signal used only where the supplied
-    policy makes Technical Evaluation conditional.
-    """
-
-    case_text = _text(
+def _case_text(case_data):
+    """Build normalized searchable case text."""
+    return _text(
         " ".join(
             [
                 str(case_data.get("title", "")),
@@ -191,6 +123,43 @@ def _is_specialized_procurement(case_data):
             ]
         )
     )
+
+
+def _is_capital_expenditure(case_data, case_text):
+    """Determine whether the case is explicitly Capex."""
+    request_type = _text(
+        case_data.get("request_type")
+    )
+
+    return (
+        "capital expenditure" in request_type
+        or "capex" in request_type
+        or "capital expenditure" in case_text
+        or "capex" in case_text
+    )
+
+
+def _is_procurement_case(case_data, case_text):
+    """Determine whether the case is procurement-related."""
+    request_type = _text(
+        case_data.get("request_type")
+    )
+
+    return (
+        "procurement" in request_type
+        or "purchase" in request_type
+        or "procurement" in case_text
+        or "purchase" in case_text
+    )
+
+
+def _is_specialized_procurement(case_data):
+    """
+    Identify case context where technical evaluation may be
+    conditionally required by PEIS policy.
+    """
+
+    case_text = _case_text(case_data)
 
     specialized_terms = [
         "specialized equipment",
@@ -217,39 +186,278 @@ def _is_specialized_procurement(case_data):
     )
 
 
-def _is_capital_expenditure(case_data, case_text):
+# ==========================================================
+# POLICY RULE EXTRACTION
+# ==========================================================
+
+def _extract_quotation_rule(policy_text):
     """
-    Determine whether the case is explicitly a capital expenditure
-    case.
+    Extract the quotation rule established by retrieved policy.
+
+    Returns:
+        {
+            "required": bool,
+            "minimum_count": int | None,
+            "threshold": float | None
+        }
+
+    The current PEIS policy states:
+        Purchases > PKR 500,000 require at least
+        3 vendor quotations unless an approved
+        single-source justification applies.
+
+    This function intentionally does not invent a quotation
+    requirement when the retrieved policy does not establish one.
     """
 
-    request_type = _text(
-        case_data.get("request_type")
+    quotation_rule_exists = _has_policy_phrase(
+        policy_text,
+        [
+            "three vendor quotations",
+            "at least three vendor quotations",
+            "3 vendor quotations",
+            "three quotations",
+            "at least 3 quotations",
+        ],
     )
+
+    if not quotation_rule_exists:
+        return {
+            "required": False,
+            "minimum_count": None,
+            "threshold": None,
+        }
+
+    # ------------------------------------------------------
+    # Determine quotation count from policy wording
+    # ------------------------------------------------------
+
+    minimum_count = None
+
+    count_patterns = [
+        r"at least\s+(\d+)\s+(?:vendor\s+)?quotations?",
+        r"(\d+)\s+(?:vendor\s+)?quotations?",
+    ]
+
+    for pattern in count_patterns:
+
+        match = re.search(
+            pattern,
+            policy_text,
+            flags=re.IGNORECASE,
+        )
+
+        if match:
+
+            try:
+                candidate = int(
+                    match.group(1)
+                )
+
+                if candidate > 0:
+                    minimum_count = candidate
+                    break
+
+            except ValueError:
+                pass
+
+    # Current PEIS policy explicitly establishes three.
+    if minimum_count is None:
+        if (
+            "three vendor quotations" in policy_text
+            or "three quotations" in policy_text
+        ):
+            minimum_count = 3
+
+    if minimum_count is None:
+        return {
+            "required": False,
+            "minimum_count": None,
+            "threshold": None,
+        }
+
+    # ------------------------------------------------------
+    # Extract threshold associated with quotation rule
+    # ------------------------------------------------------
+
+    threshold = None
+
+    threshold_patterns = [
+        r"(?:above|over|exceeding)\s+pk?r?\s*([0-9][0-9,]*)",
+        r"pk?r?\s*([0-9][0-9,]*)\s*(?:and above|or above)",
+        r"purchases?\s+(?:above|over|exceeding)\s+([0-9][0-9,]*)",
+    ]
+
+    for pattern in threshold_patterns:
+
+        match = re.search(
+            pattern,
+            policy_text,
+            flags=re.IGNORECASE,
+        )
+
+        if match:
+
+            try:
+                threshold = float(
+                    match.group(1).replace(",", "")
+                )
+                break
+
+            except ValueError:
+                pass
+
+    return {
+        "required": True,
+        "minimum_count": minimum_count,
+        "threshold": threshold,
+    }
+
+
+# ==========================================================
+# SINGLE-SOURCE EXCEPTION
+# ==========================================================
+
+def _single_source_exception_documented(
+    documents,
+    case_text,
+):
+    """
+    Determine whether there is explicit evidence of a documented
+    and approved single-source exception.
+
+    Merely mentioning "single source" is NOT sufficient.
+
+    This function looks for:
+        - explicit single-source terminology
+        - AND justification/approval evidence
+
+    This is evidence detection only. It does not independently
+    determine whether the exception is substantively valid.
+    """
+
+    combined_text = case_text
+
+    for document in documents:
+        combined_text += " " + _document_text(document)
+
+    # ------------------------------------------------------
+    # Explicit single-source terminology
+    # ------------------------------------------------------
+
+    single_source_terms = [
+        "single source",
+        "single-source",
+        "sole source",
+        "sole-source",
+        "single vendor",
+        "single-vendor",
+    ]
+
+    has_single_source_term = any(
+        term in combined_text
+        for term in single_source_terms
+    )
+
+    if not has_single_source_term:
+        return False
+
+    # ------------------------------------------------------
+    # Explicit justification / exception evidence
+    # ------------------------------------------------------
+
+    justification_terms = [
+        "single source justification",
+        "single-source justification",
+        "sole source justification",
+        "sole-source justification",
+        "single source exception",
+        "single-source exception",
+        "sole source exception",
+        "sole-source exception",
+        "exception justification",
+    ]
+
+    has_justification = any(
+        term in combined_text
+        for term in justification_terms
+    )
+
+    # ------------------------------------------------------
+    # Explicit approval evidence
+    # ------------------------------------------------------
+
+    approval_terms = [
+        "approved single source",
+        "approved single-source",
+        "approved sole source",
+        "approved sole-source",
+        "single source approved",
+        "single-source approved",
+        "sole source approved",
+        "sole-source approved",
+        "exception approved",
+        "exception approval",
+        "approval for single source",
+        "approval for single-source",
+    ]
+
+    has_approval = any(
+        term in combined_text
+        for term in approval_terms
+    )
+
+    # A documented justification is sufficient to create the
+    # Single-Source Justification requirement. However, it should
+    # not by itself be treated as proof of an approved exception.
+    #
+    # Therefore this function is deliberately strict: it returns
+    # True only where the supplied evidence contains both explicit
+    # single-source language and justification/approval language.
 
     return (
-        "capital expenditure" in request_type
-        or "capex" in request_type
-        or "capital expenditure" in case_text
-        or "capex" in case_text
+        has_single_source_term
+        and has_justification
+        and has_approval
     )
 
 
-def _is_procurement_case(case_data, case_text):
+# ==========================================================
+# FINANCIAL REVIEW EVIDENCE
+# ==========================================================
+
+def _has_financial_review_evidence(documents):
     """
-    Determine whether the case is a procurement-related case.
+    Determine whether uploaded documents explicitly demonstrate
+    financial review.
+
+    AI-generated analysis does NOT count as evidence.
     """
 
-    request_type = _text(
-        case_data.get("request_type")
-    )
+    financial_phrases = [
+        "financial review",
+        "finance review",
+        "reviewed by finance",
+        "reviewed by finance department",
+        "finance department review",
+        "financially reviewed",
+        "financial approval",
+        "finance approval",
+        "reviewed by finance manager",
+        "reviewed by finance department",
+    ]
 
-    return (
-        "procurement" in request_type
-        or "purchase" in request_type
-        or "procurement" in case_text
-        or "purchase" in case_text
-    )
+    for document in documents:
+
+        text = _document_text(document)
+
+        if any(
+            phrase in text
+            for phrase in financial_phrases
+        ):
+            return True
+
+    return False
 
 
 # ==========================================================
@@ -266,15 +474,7 @@ def _make_requirement(
     minimum_count=None,
     evidence_rule=None,
 ):
-    """
-    Create a consistent requirement object.
-
-    Keeping the structure consistent makes it easier for:
-        - Streamlit UI
-        - Supabase JSONB
-        - Evidence Gate
-        - future reporting
-    """
+    """Create a consistent requirement object."""
 
     requirement = {
         "id": requirement_id,
@@ -304,37 +504,23 @@ def determine_requirements(
     policy_evidence,
 ):
     """
-    Determine mandatory evidence requirements for a case.
+    Determine mandatory evidence requirements from applicable
+    PEIS policy and case context.
 
-    Inputs:
-        case_data:
-            Current case record.
-
-        documents:
-            Uploaded case documents.
-
-        policy_evidence:
-            RAG-retrieved PEIS policy records.
-
-    Returns:
-        List of requirement dictionaries.
+    No universal checklist is imposed.
     """
 
     case_data = case_data or {}
     documents = documents or []
     policy_evidence = policy_evidence or []
 
+    if not policy_evidence:
+        return []
+
     amount = _amount(case_data)
 
-    case_text = _text(
-        " ".join(
-            [
-                str(case_data.get("title", "")),
-                str(case_data.get("description", "")),
-                str(case_data.get("business_justification", "")),
-                str(case_data.get("request_type", "")),
-            ]
-        )
+    case_text = _case_text(
+        case_data
     )
 
     policy_text = _all_policy_text(
@@ -342,19 +528,6 @@ def determine_requirements(
     )
 
     requirements = []
-
-    # ======================================================
-    # POLICY AVAILABILITY
-    # ======================================================
-
-    if not policy_evidence:
-
-        return []
-
-
-    # ======================================================
-    # CASE TYPE
-    # ======================================================
 
     capital_expenditure = _is_capital_expenditure(
         case_data,
@@ -366,21 +539,18 @@ def determine_requirements(
         case_text,
     )
 
-
     # ======================================================
     # PURCHASE REQUEST
     # ======================================================
 
-    purchase_request_policy = _has_policy_phrase(
-        policy_text,
-        [
-            "purchase request",
-            "purchase requisition",
-        ],
-    )
-
     if (
-        purchase_request_policy
+        _has_policy_phrase(
+            policy_text,
+            [
+                "purchase request",
+                "purchase requisition",
+            ],
+        )
         and (capital_expenditure or procurement_case)
     ):
 
@@ -406,22 +576,18 @@ def determine_requirements(
             )
         )
 
-
     # ======================================================
     # BUSINESS JUSTIFICATION
     # ======================================================
 
-    business_justification_policy = _has_policy_phrase(
-        policy_text,
-        [
-            "business justification",
-            "business need",
-            "business justification",
-        ],
-    )
-
     if (
-        business_justification_policy
+        _has_policy_phrase(
+            policy_text,
+            [
+                "business justification",
+                "business need",
+            ],
+        )
         and (capital_expenditure or procurement_case)
     ):
 
@@ -447,46 +613,46 @@ def determine_requirements(
             )
         )
 
-
     # ======================================================
-    # QUOTATIONS
+    # QUOTATION REQUIREMENT
     # ======================================================
 
-    quotation_policy_exists = _has_policy_phrase(
-        policy_text,
-        [
-            "three vendor quotations",
-            "at least three vendor quotations",
-            "3 vendor quotations",
-            "three quotations",
-        ],
+    quotation_rule = _extract_quotation_rule(
+        policy_text
     )
 
-    competitive_procurement_above_threshold = (
-        amount > 500000
-        and quotation_policy_exists
+    quotation_threshold_applies = (
+        quotation_rule["required"]
+        and (
+            quotation_rule["threshold"] is None
+            or amount > quotation_rule["threshold"]
+        )
     )
 
-    single_source_indicator = _has_single_source_exception(
-        documents,
-        case_text,
-    )
+    if quotation_threshold_applies:
 
-    if competitive_procurement_above_threshold:
+        minimum_count = (
+            quotation_rule["minimum_count"]
+            or 1
+        )
 
-        if single_source_indicator:
+        # --------------------------------------------------
+        # Determine whether an approved exception is
+        # actually documented.
+        # --------------------------------------------------
 
-            # ------------------------------------------------
-            # SINGLE-SOURCE INDICATED
-            # ------------------------------------------------
-            #
-            # Do NOT force three quotations merely because the
-            # amount exceeds PKR 500,000.
-            #
-            # The case/document evidence indicates that a
-            # single-source route may apply. We therefore require
-            # the justification rather than inventing quotations.
-            #
+        approved_single_source = (
+            _single_source_exception_documented(
+                documents,
+                case_text,
+            )
+        )
+
+        if approved_single_source:
+
+            # ----------------------------------------------
+            # Single-source route
+            # ----------------------------------------------
 
             requirements.append(
                 _make_requirement(
@@ -495,11 +661,10 @@ def determine_requirements(
                     document_type="Single-Source Justification",
                     mandatory=True,
                     reason=(
-                        "The case indicates a single-source route. "
-                        "The applicable policy allows the quotation "
-                        "requirement to be addressed through a "
-                        "documented and approved single-source "
-                        "justification."
+                        "The supplied evidence indicates an "
+                        "approved single-source exception. "
+                        "The exception must be supported by "
+                        "documented justification."
                     ),
                     status=(
                         "COMPLETE"
@@ -521,56 +686,68 @@ def determine_requirements(
                         )
                         else "MISSING"
                     ),
-                    evidence_rule="POL-001 / exception route",
+                    evidence_rule=(
+                        "PEIS quotation exception route"
+                    ),
                 )
             )
 
         else:
 
-            # ------------------------------------------------
-            # COMPETITIVE PROCUREMENT
-            # ------------------------------------------------
+            # ----------------------------------------------
+            # Competitive procurement
+            # ----------------------------------------------
 
             quotation_count = _document_count(
                 documents,
                 "Vendor Quotation",
             )
 
+            quotation_name = (
+                f"{minimum_count} Vendor Quotations"
+                if minimum_count > 1
+                else "Vendor Quotation"
+            )
+
             requirements.append(
                 _make_requirement(
                     requirement_id="vendor_quotations",
-                    name="Three Vendor Quotations",
+                    name=quotation_name,
                     document_type="Vendor Quotation",
                     mandatory=True,
-                    minimum_count=3,
+                    minimum_count=minimum_count,
                     reason=(
-                        "Applicable PEIS policy requires at least "
-                        "three vendor quotations for competitive "
-                        "procurement above PKR 500,000."
+                        "Applicable PEIS policy requires at "
+                        f"least {minimum_count} vendor "
+                        "quotation"
+                        + (
+                            "s."
+                            if minimum_count != 1
+                            else "."
+                        )
                     ),
                     status=(
                         "COMPLETE"
-                        if quotation_count >= 3
+                        if quotation_count >= minimum_count
                         else "MISSING"
                     ),
-                    evidence_rule="POL-001 / P-02; POL-004 / SOP-09",
+                    evidence_rule=(
+                        "Policy-derived quotation requirement"
+                    ),
                 )
             )
 
+            # ----------------------------------------------
+            # Comparative Statement
+            # ----------------------------------------------
 
-            # ------------------------------------------------
-            # COMPARATIVE STATEMENT
-            # ------------------------------------------------
-
-            comparative_statement_policy = _has_policy_phrase(
+            if _has_policy_phrase(
                 policy_text,
                 [
                     "comparative statement",
                     "comparative analysis",
                 ],
-            )
-
-            if comparative_statement_policy:
+            ):
 
                 requirements.append(
                     _make_requirement(
@@ -579,9 +756,10 @@ def determine_requirements(
                         document_type="Comparative Statement",
                         mandatory=True,
                         reason=(
-                            "Applicable PEIS procurement procedure "
-                            "requires a Comparative Statement for "
-                            "competitive procurement."
+                            "Applicable PEIS procurement "
+                            "procedure requires a Comparative "
+                            "Statement for competitive "
+                            "procurement."
                         ),
                         status=(
                             "COMPLETE"
@@ -591,28 +769,28 @@ def determine_requirements(
                             )
                             else "MISSING"
                         ),
-                        evidence_rule="POL-001 / P-04; POL-004 / SOP-05",
+                        evidence_rule=(
+                            "POL-001 / P-04; POL-004 / SOP-05"
+                        ),
                     )
                 )
-
 
     # ======================================================
     # TECHNICAL EVALUATION
     # ======================================================
 
-    technical_evaluation_policy = _has_policy_phrase(
-        policy_text,
-        [
-            "technical evaluation",
-            "technical evaluation required",
-            "specialized equipment",
-            "technically complex",
-        ],
-    )
-
     if (
-        technical_evaluation_policy
-        and _is_specialized_procurement(case_data)
+        _has_policy_phrase(
+            policy_text,
+            [
+                "technical evaluation",
+                "specialized equipment",
+                "technically complex",
+            ],
+        )
+        and _is_specialized_procurement(
+            case_data
+        )
     ):
 
         requirements.append(
@@ -635,24 +813,23 @@ def determine_requirements(
                     )
                     else "MISSING"
                 ),
-                evidence_rule="POL-001 / P-03; POL-004 / SOP-04",
+                evidence_rule=(
+                    "POL-001 / P-03; POL-004 / SOP-04"
+                ),
             )
         )
-
 
     # ======================================================
     # FINANCIAL REVIEW
     # ======================================================
 
-    financial_review_policy = _has_policy_phrase(
+    if _has_policy_phrase(
         policy_text,
         [
             "financial review before approval",
             "financial review",
         ],
-    )
-
-    if financial_review_policy:
+    ):
 
         requirements.append(
             _make_requirement(
@@ -675,23 +852,23 @@ def determine_requirements(
             )
         )
 
-
     # ======================================================
     # REQUIRED APPROVAL
     # ======================================================
 
-    approval_policy = _has_policy_phrase(
-        policy_text,
-        [
-            "required approval",
-            "approval before po",
-            "approval before purchase order",
-            "approval authority",
-            "delegation of authority",
-        ],
-    )
-
-    if approval_policy and amount > 0:
+    if (
+        _has_policy_phrase(
+            policy_text,
+            [
+                "required approval",
+                "approval before po",
+                "approval before purchase order",
+                "approval authority",
+                "delegation of authority",
+            ],
+        )
+        and amount > 0
+    ):
 
         requirements.append(
             _make_requirement(
@@ -712,10 +889,11 @@ def determine_requirements(
                     )
                     else "MISSING"
                 ),
-                evidence_rule="POL-003 / DA; POL-004 / SOP-07",
+                evidence_rule=(
+                    "POL-003 / DA; POL-004 / SOP-07"
+                ),
             )
         )
-
 
     # ======================================================
     # REMOVE DUPLICATES
@@ -742,18 +920,21 @@ def determine_requirements(
 # ==========================================================
 
 def get_missing_requirements(requirements):
-    """
-    Return all mandatory requirements that are not complete.
-    """
+    """Return mandatory requirements that are incomplete."""
 
     missing = []
 
     for requirement in requirements or []:
 
-        if not requirement.get("mandatory", False):
+        if not requirement.get(
+            "mandatory",
+            False,
+        ):
             continue
 
-        if requirement.get("status") != "COMPLETE":
+        if requirement.get(
+            "status"
+        ) != "COMPLETE":
 
             missing.append(
                 requirement
@@ -768,15 +949,22 @@ def get_missing_requirements(requirements):
 
 def evidence_gate(requirements):
     """
-    Evaluate whether the case has all mandatory evidence.
+    Evaluate whether all mandatory policy-derived evidence
+    requirements are complete.
 
-    Returns a JSON-serializable dictionary suitable for:
-        - Streamlit
-        - Supabase JSONB
-        - Decision-page enforcement
+    Returns JSON-serializable data suitable for Supabase JSONB.
     """
 
     requirements = requirements or []
+
+    mandatory_requirements = [
+        requirement
+        for requirement in requirements
+        if requirement.get(
+            "mandatory",
+            False,
+        )
+    ]
 
     missing = get_missing_requirements(
         requirements
@@ -787,10 +975,6 @@ def evidence_gate(requirements):
         "missing": missing,
         "missing_count": len(missing),
         "total_requirements": len(
-            [
-                requirement
-                for requirement in requirements
-                if requirement.get("mandatory", False)
-            ]
+            mandatory_requirements
         ),
     }
