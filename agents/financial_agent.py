@@ -63,6 +63,24 @@ IMPORTANT RULES:
 - Distinguish PASS from ATTENTION.
 - Cite the relevant policy ID and section ID.
 - Do not make the final human approval decision.
+- The Financial Agent's own analysis is NOT evidence that an
+  organizational financial review has been completed.
+
+- Only documents explicitly showing a completed financial review
+  may be used as evidence for the Financial Review requirement.
+
+- A Purchase Request, Business Justification, quotation,
+  technical evaluation, comparative statement, or Approval Request
+  must NOT be treated as evidence that the Finance Department has
+  completed its financial review unless the document explicitly
+  contains such evidence.
+
+- If no supplied document explicitly demonstrates a completed
+  financial review, the Financial Review requirement MUST be
+  marked ATTENTION.
+
+- Do not mark Financial Review as PASS merely because the case
+  has been submitted for AI financial analysis.
 
 CASE INFORMATION:
 
@@ -103,10 +121,25 @@ supplied evidence, explicitly state that.
 
 FINANCIAL REQUIREMENTS CHECK:
 
+For each applicable financial requirement, provide:
+
 - Requirement:
 - Evidence:
 - Status:
 - Policy:
+
+For the "Mandatory Financial Review" requirement:
+
+- Mark PASS only if the supplied documents explicitly
+  demonstrate that an organizational financial review has
+  been completed.
+- A Purchase Request, quotation, technical evaluation,
+  comparative statement, or the Financial Agent's own analysis
+  is NOT evidence that the organizational financial review
+  has been completed.
+- If no supplied document explicitly demonstrates a completed
+  financial review, mark the requirement ATTENTION.
+- Clearly state what evidence is missing.
 
 FINANCIAL DISCREPANCIES:
 List any amount inconsistencies or financial issues.
