@@ -208,7 +208,7 @@ if st.button(
             "Retrieving risk-related policies..."
         ):
 
-            query = f"""
+query = f"""
 Analyze procurement risks for this approval request.
 
 Requested amount: PKR {case['amount']}
@@ -223,13 +223,29 @@ Identify risks related to:
 - conflict of interest
 - approval and governance
 
+Retrieve and use relevant evidence from:
+
+- Procurement Policy (POL-001)
+- Financial Approval Policy (POL-002)
+- Delegation of Authority Matrix (POL-003)
+- Procurement SOP (POL-004)
+- Vendor Evaluation Policy (POL-005)
+- Conflict of Interest Policy (POL-006)
+
 Focus especially on:
 
-Vendor Evaluation Policy,
-Conflict of Interest Policy,
-Procurement Policy,
-Procurement SOP,
-and relevant Financial Approval requirements.
+- vendor quotation requirements
+- technical evaluation
+- comparative statement
+- financial review
+- vendor suitability
+- vendor performance
+- conflict-of-interest disclosure
+- approval and purchase-order controls
+
+Do not assume that a risk exists merely because information
+is missing. Distinguish confirmed risks from potential risks
+and missing information.
 """
 
             policy_evidence = search_policies(
