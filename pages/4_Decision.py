@@ -587,103 +587,166 @@ comments = st.text_area(
     placeholder="Enter your decision comments..."
 )
 
-
 # ---------------------------------------------------------
 # Submit Human Decision
 # ---------------------------------------------------------
 
-if decision in ["Return", "Reject"] and not comments.strip():
+# ---------------------------------------------------------
+# Check whether a final decision already exists
+# ---------------------------------------------------------
 
-    st.info(
-        "Reviewer comments are required for Return or Reject."
+try:
+
+    existing_decision_response = (
+        supabase
+        .table("decisions")
+        .select("id, decision, created_at")
+        .eq(
+            "case_id",
+            case["id"]
+        )
+        .order(
+            "created_at",
+            desc=True
+        )
+        .limit(1)
+        .execute()
+    )
+
+    existing_decisions = (
+        existing_decision_response.data or []
+    )
+
+except Exception as e:
+
+    existing_decisions = []
+
+    st.warning(
+        f"Unable to check previous decision: {e}"
     )
 
 
-if st.button(
-    "Submit Final Decision",
-    type="primary",
-    use_container_width=True
-):
+# ---------------------------------------------------------
+# If a final decision already exists
+# ---------------------------------------------------------
+
+if existing_decisions:
+
+    previous_decision = existing_decisions[0]
+
+    st.success(
+        f"✅ Final decision already recorded: "
+        f"{previous_decision.get('decision', 'N/A')}"
+    )
+
+    st.info(
+        "This case has already received a final human decision. "
+        "A second final decision cannot be submitted."
+    )
+
+else:
+
+    # -----------------------------------------------------
+    # Reviewer comments requirement
+    # -----------------------------------------------------
 
     if decision in ["Return", "Reject"] and not comments.strip():
 
-        st.error(
-            "Please enter reviewer comments."
-        )
-
-        st.stop()
-
-    try:
-
-        # -------------------------------------------------
-        # Save Human Decision
-        # -------------------------------------------------
-
-        supabase.table("decisions").insert(
-            {
-                "case_id": case["id"],
-                "reviewer_id": st.session_state["user"].id,
-                "decision": decision,
-                "comments": comments.strip()
-            }
-        ).execute()
-
-
-        # -------------------------------------------------
-        # Update Case Status
-        # -------------------------------------------------
-
-        status_map = {
-            "Approve": "APPROVED",
-            "Return": "RETURNED",
-            "Reject": "REJECTED"
-        }
-
-        new_status = status_map[decision]
-
-        supabase.table("cases").update(
-            {
-                "status": new_status
-            }
-        ).eq(
-            "id",
-            case["id"]
-        ).execute()
-
-
-        # -------------------------------------------------
-        # Create Audit Log
-        # -------------------------------------------------
-
-        supabase.table("audit_logs").insert(
-            {
-                "case_id": case["id"],
-                "user_id": st.session_state["user"].id,
-                "action": f"HUMAN_DECISION_{decision.upper()}",
-                "details": (
-                    f"Human reviewer selected {decision}. "
-                    f"Comments: "
-                    f"{comments.strip() or 'None'}"
-                )
-            }
-        ).execute()
-
-
-        # -------------------------------------------------
-        # Confirmation
-        # -------------------------------------------------
-
-        st.success(
-            f"✅ Human decision saved successfully: {decision}"
-        )
-
         st.info(
-            f"Case status updated to: {new_status}"
+            "Reviewer comments are required for Return or Reject."
         )
 
 
-    except Exception as e:
+    # -----------------------------------------------------
+    # Submit Decision
+    # -----------------------------------------------------
 
-        st.error(
-            f"Unable to save the human decision: {e}"
-        )
+    if st.button(
+        "Submit Final Decision",
+        type="primary",
+        use_container_width=True
+    ):
+
+        if decision in ["Return", "Reject"] and not comments.strip():
+
+            st.error(
+                "Please enter reviewer comments."
+            )
+
+            st.stop()
+
+
+        try:
+
+            # -------------------------------------------------
+            # Save Human Decision
+            # -------------------------------------------------
+
+            supabase.table("decisions").insert(
+                {
+                    "case_id": case["id"],
+                    "reviewer_id": st.session_state["user"].id,
+                    "decision": decision,
+                    "comments": comments.strip()
+                }
+            ).execute()
+
+
+            # -------------------------------------------------
+            # Update Case Status
+            # -------------------------------------------------
+
+            status_map = {
+                "Approve": "APPROVED",
+                "Return": "RETURNED",
+                "Reject": "REJECTED"
+            }
+
+            new_status = status_map[decision]
+
+            supabase.table("cases").update(
+                {
+                    "status": new_status
+                }
+            ).eq(
+                "id",
+                case["id"]
+            ).execute()
+
+
+            # -------------------------------------------------
+            # Create Audit Log
+            # -------------------------------------------------
+
+            supabase.table("audit_logs").insert(
+                {
+                    "case_id": case["id"],
+                    "user_id": st.session_state["user"].id,
+                    "action": f"HUMAN_DECISION_{decision.upper()}",
+                    "details": (
+                        f"Human reviewer selected {decision}. "
+                        f"Comments: "
+                        f"{comments.strip() or 'None'}"
+                    )
+                }
+            ).execute()
+
+
+            # -------------------------------------------------
+            # Confirmation
+            # -------------------------------------------------
+
+            st.success(
+                f"✅ Human decision saved successfully: {decision}"
+            )
+
+            st.info(
+                f"Case status updated to: {new_status}"
+            )
+
+
+        except Exception as e:
+
+            st.error(
+                f"Unable to save the human decision: {e}"
+            )
