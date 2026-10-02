@@ -1,190 +1,170 @@
-import streamlit as st
+from google import genai
 
-from agents.financial_agent import run_financial_agent
-from rag.retriever import search_policies
-from database.supabase_client import get_supabase
+from config.settings import get_gemini_api_key
 
 
-st.set_page_config(
-    page_title="Financial Test - AegisAI",
-    page_icon="💰",
-    layout="wide"
-)
+MODEL = "gemini-3.6-flash"
 
-st.title("💰 AegisAI Financial Agent Test")
 
-if "user" not in st.session_state:
-    st.warning("Please login first.")
-    st.stop()
-
-supabase = get_supabase()
-user_id = st.session_state["user"].id
-
-# -----------------------------
-# Load Cases
-# -----------------------------
-
-cases_response = (
-    supabase
-    .table("cases")
-    .select("*")
-    .eq("user_id", user_id)
-    .order("created_at", desc=True)
-    .execute()
-)
-
-cases = cases_response.data or []
-
-if not cases:
-    st.info("No approval cases found.")
-    st.stop()
-
-case_options = {}
-
-for case in cases:
-    label = (
-        f"{case['title']} — "
-        f"PKR {float(case['amount']):,.0f}"
-    )
-    case_options[label] = case
-
-selected_label = st.selectbox(
-    "Select approval case",
-    list(case_options.keys())
-)
-
-case = case_options[selected_label]
-
-st.subheader("Case Information")
-
-col1, col2, col3 = st.columns(3)
-
-with col1:
-    st.write(f"**Title:** {case['title']}")
-
-with col2:
-    st.write(f"**Department:** {case['department']}")
-
-with col3:
-    st.write(
-        f"**Amount:** PKR {float(case['amount']):,.0f}"
-    )
-
-st.divider()
-
-# -----------------------------
-# Load Documents
-# -----------------------------
-
-st.subheader("Uploaded Documents")
-
-documents_response = (
-    supabase
-    .table("documents")
-    .select(
-        "id, case_id, document_name, "
-        "document_type, extracted_text, created_at"
-    )
-    .eq("case_id", case["id"])
-    .execute()
-)
-
-documents = documents_response.data or []
-
-if not documents:
-    st.warning(
-        "No documents were found for this case."
-    )
-    st.stop()
-
-for index, document in enumerate(
+def run_financial_agent(
+    case_data,
     documents,
-    start=1
+    policy_evidence
 ):
-    st.write(
-        f"**{index}. {document['document_name']}** "
-        f"— {document['document_type']}"
+    client = genai.Client(
+        api_key=get_gemini_api_key()
     )
 
-st.success(
-    f"{len(documents)} document(s) found."
-)
+    document_text = "\n\n".join(
+        [
+            f"DOCUMENT: {doc['document_name']}\n"
+            f"TYPE: {doc['document_type']}\n"
+            f"CONTENT:\n{doc['extracted_text']}"
+            for doc in documents
+        ]
+    )
 
-st.divider()
+    policy_text = "\n\n".join(
+        [
+            f"{item['policy_id']} — "
+            f"{item['policy_name']}\n"
+            f"{item['section_id']} — "
+            f"{item['section_title']}\n"
+            f"{item['content']}"
+            for item in policy_evidence
+        ]
+    )
 
-# -----------------------------
-# Run Financial Agent
-# -----------------------------
+    prompt = f"""
+You are the Financial Agent in AegisAI,
+an AI-powered procurement approval system.
 
-if st.button(
-    "💰 Run Financial Agent",
-    type="primary",
-    use_container_width=True
-):
+Your task is to review the financial aspects of an
+approval case using ONLY the supplied case information,
+documents, and policy evidence.
 
-    try:
+IMPORTANT RULES:
 
-        with st.spinner(
-            "Retrieving financial policies and running Financial Agent..."
-        ):
+- Use ONLY the supplied policy evidence.
+- Use ONLY the supplied case and document information.
+- Do not invent policies, thresholds, amounts, or documents.
 
-            query = f"""
-            Analyze the financial compliance of a PKR
-            {case['amount']} procurement approval request.
+- Determine the applicable approval authority ONLY when the
+  supplied policy evidence establishes the required threshold.
 
-            Determine the applicable capital expenditure
-            approval authority using the delegation of
-            authority thresholds.
+- Compare the requested amount against the complete set of
+  supplied approval thresholds.
 
-            Check amount consistency across the Purchase Request,
-            quotations, comparative statement and approval request.
+- Do not assume that a missing threshold exists.
 
-            Identify any financial discrepancies or missing
-            financial requirements.
-            """
+- If the evidence does not establish the applicable authority,
+  clearly state that it cannot be determined from the available
+  evidence.
 
-            policy_evidence = search_policies(
-                query,
-                top_k=10
-            )
+- Check whether amounts are consistent across the available
+  documents.
 
-            result = run_financial_agent(
-                case_data=case,
-                documents=documents,
-                policy_evidence=policy_evidence
-            )
+- Identify financial discrepancies explicitly.
 
-        st.success(
-            "Financial Agent completed successfully."
-        )
+- Identify missing financial information.
 
-        st.subheader("Financial Assessment")
+- Distinguish PASS from ATTENTION.
 
-        st.markdown(result)
+- Cite the relevant policy ID and section ID.
 
-        st.divider()
+- Do not make the final human approval decision.
 
-        st.subheader("Retrieved Financial Policy Evidence")
+IMPORTANT FINANCIAL REVIEW RULES:
 
-        for index, item in enumerate(
-            policy_evidence,
-            start=1
-        ):
+- Do NOT interpret the Financial Agent's own analysis as evidence
+  that an organizational financial review has been completed.
 
-            st.markdown(
-                f"**{index}. {item['policy_id']} — "
-                f"{item['section_id']} — "
-                f"{item['section_title']}**"
-            )
+- Only mark "Financial Review" as completed or evidenced if the
+  supplied documents explicitly contain evidence of a completed
+  financial review.
 
-            st.write(
-                f"Similarity: {item['similarity']:.4f}"
-            )
+- If no document explicitly shows that a financial review has been
+  completed, mark the Financial Review requirement as ATTENTION.
 
-            st.info(item["content"])
+- Do not create or assume a financial review document that has not
+  been supplied.
 
-    except Exception as e:
+- A financial analysis performed by this AI agent is an assessment,
+  not evidence that PEIS Finance has completed its organizational
+  financial review.
 
-        st.error(
-            f"Financial Agent test failed: {str(e)}"
-        )
+CASE INFORMATION:
+
+Title: {case_data.get("title", "")}
+Department: {case_data.get("department", "")}
+Amount: {case_data.get("amount", "")}
+Description: {case_data.get("description", "")}
+
+SUPPLIED DOCUMENTS:
+
+{document_text}
+
+RELEVANT POLICY EVIDENCE:
+
+{policy_text}
+
+Return your assessment using exactly this structure:
+
+FINANCIAL RESULT:
+PASS or ATTENTION
+
+SUMMARY:
+Brief overall financial assessment.
+
+AMOUNT CHECK:
+State the case amount and whether it is consistent with the
+available supporting documents.
+
+APPROVAL AUTHORITY CHECK:
+State:
+- Requested amount
+- Applicable threshold
+- Approval authority
+- Policy section
+
+If the applicable authority cannot be established from the
+supplied evidence, explicitly state that.
+
+FINANCIAL REQUIREMENTS CHECK:
+
+- Requirement:
+- Evidence:
+- Status:
+- Policy:
+
+For the Financial Review requirement:
+
+- Mark PASS only if the supplied documents explicitly show
+  evidence of a completed financial review.
+- Otherwise mark ATTENTION.
+- Do not use the Financial Agent's own analysis as evidence.
+
+FINANCIAL DISCREPANCIES:
+List any amount inconsistencies or financial issues.
+Write "None identified" if there are none.
+
+MISSING OR UNCLEAR FINANCIAL ITEMS:
+List missing financial information.
+Write "None identified" if there are none.
+
+POLICY EVIDENCE:
+List the policy sections used.
+
+RECOMMENDATION:
+State whether the financial aspects appear compliant or
+require clarification/escalation.
+
+Do not provide a final human approval decision.
+"""
+
+    response = client.models.generate_content(
+        model=MODEL,
+        contents=prompt
+    )
+
+    return response.text
