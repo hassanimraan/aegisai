@@ -1,7 +1,7 @@
 from agents.compliance_agent import run_compliance_agent
 from agents.financial_agent import run_financial_agent
 from agents.risk_agent import run_risk_agent
-from agents.decision_synthsizer import run_decision_synthesizer
+from agents.decision_synthesizer import run_decision_synthesizer
 
 from rag.retriever import search_policies
 
