@@ -30,7 +30,12 @@ def show_login():
         "Create Account"
     ])
 
+    # =========================
+    # LOGIN
+    # =========================
+
     with tab_login:
+
         st.subheader("Sign In")
 
         email = st.text_input(
@@ -47,11 +52,18 @@ def show_login():
         if st.button(
             "Login",
             type="primary",
-            use_container_width=True
+            use_container_width=True,
+            key="login_button"
         ):
-            if not email or not password:
-                st.warning("Please enter your email and password.")
+
+            email = email.strip()
+
+            if email == "" or password == "":
+                st.warning(
+                    "Please enter your email and password."
+                )
             else:
+
                 success, message = login_user(
                     email,
                     password
@@ -63,7 +75,12 @@ def show_login():
                 else:
                     st.error(message)
 
+    # =========================
+    # SIGNUP
+    # =========================
+
     with tab_signup:
+
         st.subheader("Create Account")
 
         name = st.text_input(
@@ -91,34 +108,53 @@ def show_login():
         if st.button(
             "Create Account",
             type="primary",
-            use_container_width=True
+            use_container_width=True,
+            key="signup_button"
         ):
-            if not name or not email or not password:
-                st.warning("Please complete all fields.")
+
+            name = name.strip()
+            email = email.strip()
+
+            if not name:
+                st.error("Please enter your full name.")
+
+            elif not email:
+                st.error("Please enter your email.")
+
+            elif not password:
+                st.error("Please enter a password.")
+
+            elif not confirm_password:
+                st.error("Please confirm your password.")
 
             elif password != confirm_password:
                 st.error("Passwords do not match.")
 
             elif len(password) < 6:
-                st.error("Password must contain at least 6 characters.")
+                st.error(
+                    "Password must contain at least 6 characters."
+                )
 
             else:
+
                 success, message = signup_user(
+                    name,
                     email,
                     password
                 )
 
                 if success:
                     st.success(
-                        "Account created successfully. "
-                        "You can now use AegisAI."
+                        "Account created successfully."
                     )
                     st.rerun()
+
                 else:
                     st.error(message)
 
 
 def show_application():
+
     user = st.session_state["user"]
 
     st.title("🛡️ AegisAI")
@@ -136,11 +172,20 @@ def show_application():
     )
 
     if st.button("Logout"):
+
         logout_user()
+
         st.rerun()
 
 
+# =========================
+# APPLICATION ENTRY POINT
+# =========================
+
 if "user" not in st.session_state:
+
     show_login()
+
 else:
+
     show_application()
