@@ -15,6 +15,7 @@ st.set_page_config(
 
 
 def show_login():
+
     st.title("🛡️ AegisAI")
     st.subheader("Intelligent Approval & Compliance System")
 
@@ -30,38 +31,41 @@ def show_login():
         "Create Account"
     ])
 
-    # =========================
+    # ==========================================
     # LOGIN
-    # =========================
+    # ==========================================
 
     with tab_login:
 
         st.subheader("Sign In")
 
-        email = st.text_input(
-            "Email",
-            key="login_email"
-        )
+        with st.form("login_form"):
 
-        password = st.text_input(
-            "Password",
-            type="password",
-            key="login_password"
-        )
+            email = st.text_input(
+                "Email"
+            )
 
-        if st.button(
-            "Login",
-            type="primary",
-            use_container_width=True,
-            key="login_button"
-        ):
+            password = st.text_input(
+                "Password",
+                type="password"
+            )
+
+            submitted = st.form_submit_button(
+                "Login",
+                type="primary",
+                use_container_width=True
+            )
+
+        if submitted:
 
             email = email.strip()
 
-            if email == "" or password == "":
-                st.warning(
-                    "Please enter your email and password."
-                )
+            if not email:
+                st.error("Please enter your email.")
+
+            elif not password:
+                st.error("Please enter your password.")
+
             else:
 
                 success, message = login_user(
@@ -72,45 +76,45 @@ def show_login():
                 if success:
                     st.success(message)
                     st.rerun()
+
                 else:
                     st.error(message)
 
-    # =========================
-    # SIGNUP
-    # =========================
+    # ==========================================
+    # CREATE ACCOUNT
+    # ==========================================
 
     with tab_signup:
 
         st.subheader("Create Account")
 
-        name = st.text_input(
-            "Full Name",
-            key="signup_name"
-        )
+        with st.form("signup_form"):
 
-        email = st.text_input(
-            "Email",
-            key="signup_email"
-        )
+            name = st.text_input(
+                "Full Name"
+            )
 
-        password = st.text_input(
-            "Password",
-            type="password",
-            key="signup_password"
-        )
+            email = st.text_input(
+                "Email"
+            )
 
-        confirm_password = st.text_input(
-            "Confirm Password",
-            type="password",
-            key="signup_confirm_password"
-        )
+            password = st.text_input(
+                "Password",
+                type="password"
+            )
 
-        if st.button(
-            "Create Account",
-            type="primary",
-            use_container_width=True,
-            key="signup_button"
-        ):
+            confirm_password = st.text_input(
+                "Confirm Password",
+                type="password"
+            )
+
+            submitted = st.form_submit_button(
+                "Create Account",
+                type="primary",
+                use_container_width=True
+            )
+
+        if submitted:
 
             name = name.strip()
             email = email.strip()
@@ -144,12 +148,15 @@ def show_login():
                 )
 
                 if success:
+
                     st.success(
                         "Account created successfully."
                     )
+
                     st.rerun()
 
                 else:
+
                     st.error(message)
 
 
@@ -171,16 +178,18 @@ def show_application():
         f"Welcome, {user.email}"
     )
 
-    if st.button("Logout"):
+    if st.button(
+        "Logout",
+        type="secondary"
+    ):
 
         logout_user()
-
         st.rerun()
 
 
-# =========================
-# APPLICATION ENTRY POINT
-# =========================
+# ==========================================
+# ENTRY POINT
+# ==========================================
 
 if "user" not in st.session_state:
 
