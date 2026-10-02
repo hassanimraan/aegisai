@@ -184,6 +184,11 @@ try:
     )
 
     reviews = review_response.data or []
+    if reviews:
+
+    latest_review = reviews[0]
+
+    st.session_state["ai_case_review_db"] = latest_review
 
 except Exception as e:
 
@@ -544,6 +549,47 @@ st.warning(
     "The final decision must be made by the human reviewer."
 )
 
+
+# ---------------------------------------------------------
+# Evidence Gate Protection
+# ---------------------------------------------------------
+
+latest_review = st.session_state.get("ai_case_review")
+
+if latest_review:
+
+    gate = latest_review.get(
+        "evidence_gate",
+        {}
+    )
+
+    if not gate.get("complete", False):
+
+        st.error(
+            "🔴 FINAL DECISION LOCKED"
+        )
+
+        st.warning(
+            "Mandatory policy-required evidence is incomplete. "
+            "Please upload the missing evidence and run AI Case "
+            "Review again before making the final decision."
+        )
+
+        st.subheader("Missing Evidence")
+
+        for item in gate.get("missing", []):
+
+            st.write(
+                f"• **{item.get('name', 'Requirement')}**"
+            )
+
+            if item.get("reason"):
+
+                st.caption(
+                    item["reason"]
+                )
+
+        st.stop()
 
 # ---------------------------------------------------------
 # Check Existing Human Decision
