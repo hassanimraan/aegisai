@@ -557,9 +557,19 @@ st.warning(
 # ---------------------------------------------------------
 
 gate = review.get(
-    "evidence_gate",
-    {}
+    "evidence_gate"
 )
+
+if isinstance(gate, str):
+    import json
+
+    try:
+        gate = json.loads(gate)
+    except Exception:
+        gate = {}
+
+if not isinstance(gate, dict):
+    gate = {}
 
 if not gate.get("complete", False):
 
@@ -579,6 +589,9 @@ if not gate.get("complete", False):
         "missing",
         []
     )
+
+if not isinstance(missing, list):
+    missing = []
 
     if missing:
 
