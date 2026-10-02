@@ -1,4 +1,3 @@
-```python
 """
 AegisAI - Policy-Driven Evidence Requirements
 
@@ -795,4 +794,3 @@ def evidence_gate(requirements):
             ]
         ),
     }
-```
