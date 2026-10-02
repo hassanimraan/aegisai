@@ -184,9 +184,12 @@ try:
     )
 
     reviews = review_response.data or []
-    
+
     if reviews:
+
         latest_review = reviews[0]
+
+        # Keep database review available in session
         st.session_state["ai_case_review_db"] = latest_review
 
 except Exception as e:
@@ -212,6 +215,7 @@ if not reviews:
     st.stop()
 
 
+# Use the latest persisted database review
 review = reviews[0]
 
 
@@ -548,35 +552,37 @@ st.warning(
     "The final decision must be made by the human reviewer."
 )
 
-
 # ---------------------------------------------------------
 # Evidence Gate Protection
 # ---------------------------------------------------------
 
-latest_review = st.session_state.get("ai_case_review")
+gate = review.get(
+    "evidence_gate",
+    {}
+)
 
-if latest_review:
+if not gate.get("complete", False):
 
-    gate = latest_review.get(
-        "evidence_gate",
-        {}
+    st.error(
+        "🔴 FINAL DECISION LOCKED"
     )
 
-    if not gate.get("complete", False):
+    st.warning(
+        "Mandatory policy-required evidence is incomplete. "
+        "Please upload the missing evidence and run AI Case "
+        "Review again before making the final decision."
+    )
 
-        st.error(
-            "🔴 FINAL DECISION LOCKED"
-        )
+    st.subheader("Missing Evidence")
 
-        st.warning(
-            "Mandatory policy-required evidence is incomplete. "
-            "Please upload the missing evidence and run AI Case "
-            "Review again before making the final decision."
-        )
+    missing = gate.get(
+        "missing",
+        []
+    )
 
-        st.subheader("Missing Evidence")
+    if missing:
 
-        for item in gate.get("missing", []):
+        for item in missing:
 
             st.write(
                 f"• **{item.get('name', 'Requirement')}**"
@@ -588,7 +594,14 @@ if latest_review:
                     item["reason"]
                 )
 
-        st.stop()
+    else:
+
+        st.info(
+            "The Evidence Gate is incomplete, "
+            "but no specific missing requirement was returned."
+        )
+
+    st.stop()
 
 # ---------------------------------------------------------
 # Check Existing Human Decision
@@ -662,6 +675,61 @@ if existing_decisions:
 
 else:
 
+    # -----------------------------------------------------
+    # Evidence Gate Protection
+    # -----------------------------------------------------
+
+    gate = review.get(
+        "evidence_gate",
+        {}
+    )
+
+    if not gate.get("complete", False):
+
+        st.error(
+            "🔴 FINAL DECISION LOCKED"
+        )
+
+        st.warning(
+            "Mandatory policy-required evidence is incomplete. "
+            "Please upload the missing evidence and run AI Case "
+            "Review again before making the final decision."
+        )
+
+        st.subheader("📋 Missing Evidence")
+
+        missing = gate.get(
+            "missing",
+            []
+        )
+
+        if missing:
+
+            for item in missing:
+
+                st.write(
+                    f"❌ **{item.get('name', 'Requirement')}**"
+                )
+
+                if item.get("reason"):
+
+                    st.caption(
+                        item["reason"]
+                    )
+
+        else:
+
+            st.info(
+                "The Evidence Gate is incomplete, "
+                "but no specific missing requirement was returned."
+            )
+
+        st.stop()
+
+    # -----------------------------------------------------
+    # Evidence complete → allow human decision
+    # -----------------------------------------------------
+
     decision = st.radio(
         "Select Decision",
         [
@@ -672,20 +740,10 @@ else:
         horizontal=True
     )
 
-
     comments = st.text_area(
         "Reviewer Comments",
         placeholder="Enter your decision comments..."
     )
-
-
-    if decision in ["Return", "Reject"] and not comments.strip():
-
-        st.info(
-            "Reviewer comments are required for Return or Reject."
-        )
-
-
     # -----------------------------------------------------
     # Submit Decision
     # -----------------------------------------------------
