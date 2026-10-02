@@ -448,59 +448,67 @@ if "current_case_id" in st.session_state:
                     current_documents
                 )
 
-            # Keep review in session for immediate display
+            # ------------------------------------------
+            # KEEP REVIEW IN SESSION
+            # ------------------------------------------
+
             st.session_state["ai_case_review"] = review
+
             st.session_state["ai_case_review_id"] = case_id
 
-# ------------------------------------------
-# SAVE AI REVIEW
-# ------------------------------------------
+            # ------------------------------------------
+            # SAVE AI REVIEW
+            # ------------------------------------------
 
-ai_review_response = (
-    supabase
-    .table("ai_reviews")
-    .insert({
-        "case_id": case_id,
+            ai_review_response = (
+                supabase
+                .table("ai_reviews")
+                .insert({
+                    "case_id": case_id,
 
-        "compliance_result": review.get(
-            "compliance",
-            ""
-        ),
+                    "compliance_result": review.get(
+                        "compliance",
+                        ""
+                    ),
 
-        "financial_result": review.get(
-            "financial",
-            ""
-        ),
+                    "financial_result": review.get(
+                        "financial",
+                        ""
+                    ),
 
-        "risk_result": review.get(
-            "risk",
-            ""
-        ),
+                    "risk_result": review.get(
+                        "risk",
+                        ""
+                    ),
 
-        "synthesis": review.get(
-            "synthesis",
-            ""
-        ),
+                    "synthesis": review.get(
+                        "synthesis",
+                        ""
+                    ),
 
-        "recommendation": review.get(
-            "synthesis",
-            ""
-        ),
+                    "recommendation": review.get(
+                        "synthesis",
+                        ""
+                    ),
 
-        # Persist policy-driven evidence requirements
-        "requirements": review.get(
-            "requirements",
-            []
-        ),
+                    # Persist policy-driven evidence requirements
+                    "requirements": review.get(
+                        "requirements",
+                        []
+                    ),
 
-        # Persist Evidence Gate status
-        "evidence_gate": review.get(
-            "evidence_gate",
-            {}
-        )
-    })
-    .execute()
-)
+                    # Persist Evidence Gate status
+                    "evidence_gate": review.get(
+                        "evidence_gate",
+                        {}
+                    )
+                })
+                .execute()
+            )
+
+            # ------------------------------------------
+            # CHECK DATABASE SAVE
+            # ------------------------------------------
 
             if not ai_review_response.data:
 
@@ -509,9 +517,11 @@ ai_review_response = (
                     "could not be saved to the database."
                 )
 
-            st.success(
-                "AI Case Review completed successfully."
-            )
+            else:
+
+                st.success(
+                    "AI Case Review completed successfully."
+                )
 
         except Exception as e:
 
@@ -569,7 +579,6 @@ if (
             "No mandatory evidence requirements were "
             "identified from the retrieved policy evidence."
         )
-
 
     # ==========================================
     # EVIDENCE GATE
