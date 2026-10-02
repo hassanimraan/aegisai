@@ -1,335 +1,411 @@
 import streamlit as st
 
 from services.authentication import (
-    login_user,
-    signup_user,
-    logout_user
+login_user,
+signup_user,
+logout_user
 )
-
 
 st.set_page_config(
-    page_title="AegisAI",
-    page_icon="🛡️",
-    layout="wide"
+page_title="AegisAI",
+page_icon="🛡️",
+layout="wide"
 )
 
-
 # ==========================================
+
 # LOGIN / SIGNUP
+
 # ==========================================
 
 def show_login():
 
-    st.title("🛡️ AegisAI")
-    st.subheader("Intelligent Approval & Compliance System")
+```
+st.title("🛡️ AegisAI")
 
-    st.write(
-        "AI-powered policy intelligence, multi-agent review, "
-        "and human-controlled approvals."
-    )
+st.subheader(
+    "Intelligent Approval & Compliance System"
+)
 
-    st.divider()
+st.write(
+    "AI-powered policy intelligence, multi-agent review, "
+    "and human-controlled approvals."
+)
 
-    tab_login, tab_signup = st.tabs([
-        "Login",
-        "Create Account"
-    ])
+st.divider()
 
-    # ======================================
-    # LOGIN
-    # ======================================
+tab_login, tab_signup = st.tabs([
+    "Login",
+    "Create Account"
+])
 
-    with tab_login:
 
-        st.subheader("Sign In")
+# ======================================
+# LOGIN
+# ======================================
 
-        with st.form("login_form"):
+with tab_login:
 
-            email = st.text_input("Email")
+    st.subheader("Sign In")
 
-            password = st.text_input(
-                "Password",
-                type="password"
+    with st.form("login_form"):
+
+        email = st.text_input("Email")
+
+        password = st.text_input(
+            "Password",
+            type="password"
+        )
+
+        submitted = st.form_submit_button(
+            "Login",
+            type="primary",
+            use_container_width=True
+        )
+
+    if submitted:
+
+        email = email.strip()
+
+        if not email:
+
+            st.error(
+                "Please enter your email."
             )
 
-            submitted = st.form_submit_button(
-                "Login",
-                type="primary",
-                use_container_width=True
+        elif not password:
+
+            st.error(
+                "Please enter your password."
             )
 
-        if submitted:
+        else:
 
-            email = email.strip()
+            success, message = login_user(
+                email,
+                password
+            )
 
-            if not email:
-                st.error("Please enter your email.")
+            if success:
 
-            elif not password:
-                st.error("Please enter your password.")
+                st.success(message)
+
+                st.rerun()
 
             else:
 
-                success, message = login_user(
-                    email,
-                    password
-                )
+                st.error(message)
 
-                if success:
 
-                    st.success(message)
+# ======================================
+# CREATE ACCOUNT
+# ======================================
 
-                    st.rerun()
+with tab_signup:
 
-                else:
+    st.subheader("Create Account")
 
-                    st.error(message)
+    with st.form("signup_form"):
 
-    # ======================================
-    # CREATE ACCOUNT
-    # ======================================
+        name = st.text_input("Full Name")
 
-    with tab_signup:
+        email = st.text_input("Email")
 
-        st.subheader("Create Account")
+        password = st.text_input(
+            "Password",
+            type="password"
+        )
 
-        with st.form("signup_form"):
+        confirm_password = st.text_input(
+            "Confirm Password",
+            type="password"
+        )
 
-            name = st.text_input("Full Name")
+        submitted = st.form_submit_button(
+            "Create Account",
+            type="primary",
+            use_container_width=True
+        )
 
-            email = st.text_input("Email")
+    if submitted:
 
-            password = st.text_input(
-                "Password",
-                type="password"
+        name = name.strip()
+        email = email.strip()
+
+        if not name:
+
+            st.error(
+                "Please enter your full name."
             )
 
-            confirm_password = st.text_input(
-                "Confirm Password",
-                type="password"
+        elif not email:
+
+            st.error(
+                "Please enter your email."
             )
 
-            submitted = st.form_submit_button(
-                "Create Account",
-                type="primary",
-                use_container_width=True
+        elif not password:
+
+            st.error(
+                "Please enter a password."
             )
 
-        if submitted:
+        elif not confirm_password:
 
-            name = name.strip()
-            email = email.strip()
+            st.error(
+                "Please confirm your password."
+            )
 
-            if not name:
+        elif password != confirm_password:
 
-                st.error(
-                    "Please enter your full name."
+            st.error(
+                "Passwords do not match."
+            )
+
+        elif len(password) < 6:
+
+            st.error(
+                "Password must contain at least 6 characters."
+            )
+
+        else:
+
+            success, message = signup_user(
+                name,
+                email,
+                password
+            )
+
+            if success:
+
+                st.success(
+                    "Account created successfully."
                 )
 
-            elif not email:
-
-                st.error(
-                    "Please enter your email."
-                )
-
-            elif not password:
-
-                st.error(
-                    "Please enter a password."
-                )
-
-            elif not confirm_password:
-
-                st.error(
-                    "Please confirm your password."
-                )
-
-            elif password != confirm_password:
-
-                st.error(
-                    "Passwords do not match."
-                )
-
-            elif len(password) < 6:
-
-                st.error(
-                    "Password must contain at least 6 characters."
-                )
+                st.rerun()
 
             else:
 
-                success, message = signup_user(
-                    name,
-                    email,
-                    password
-                )
-
-                if success:
-
-                    st.success(
-                        "Account created successfully."
-                    )
-
-                    st.rerun()
-
-                else:
-
-                    st.error(message)
-
+                st.error(message)
+```
 
 # ==========================================
+
 # MAIN APPLICATION
+
 # ==========================================
 
 def show_application():
 
-    user = st.session_state["user"]
+```
+user = st.session_state["user"]
 
-    # --------------------------------------
-    # SIDEBAR
-    # --------------------------------------
 
-    with st.sidebar:
+# --------------------------------------
+# SIDEBAR
+# --------------------------------------
 
-        st.title("🛡️ AegisAI")
-
-        st.write("Approval & Compliance System")
-
-        st.divider()
-
-        st.write(
-            f"**User:** {user.email}"
-        )
-
-        st.divider()
-
-        st.subheader("Navigation")
-
-        st.write("📊 Dashboard")
-
-        st.write("📝 Create Approval Case")
-
-        st.write("📁 Case History")
-
-        st.divider()
-
-        if st.button(
-            "Logout",
-            use_container_width=True
-        ):
-
-            logout_user()
-            st.rerun()
-
-    # --------------------------------------
-    # MAIN SCREEN
-    # --------------------------------------
+with st.sidebar:
 
     st.title("🛡️ AegisAI")
 
-    st.subheader(
-        "Intelligent Approval & Compliance System"
+    st.write(
+        "Approval & Compliance System"
+    )
+
+    st.divider()
+
+    st.write(
+        f"**User:** {user.email}"
+    )
+
+    st.divider()
+
+    st.subheader("Navigation")
+
+    if st.button(
+        "📊 Dashboard",
+        use_container_width=True
+    ):
+
+        st.switch_page(
+            "pages/1_Dashboard.py"
+        )
+
+    if st.button(
+        "📝 Create Approval Case",
+        use_container_width=True
+    ):
+
+        st.switch_page(
+            "pages/2_Create_Case.py"
+        )
+
+    if st.button(
+        "⚖️ Decision",
+        use_container_width=True
+    ):
+
+        st.switch_page(
+            "pages/4_Decision.py"
+        )
+
+    if st.button(
+        "📁 Case History",
+        use_container_width=True
+    ):
+
+        st.switch_page(
+            "pages/5_Case_History.py"
+        )
+
+    if st.button(
+        "📄 Reports",
+        use_container_width=True
+    ):
+
+        st.switch_page(
+            "pages/6_Report.py"
+        )
+
+    st.divider()
+
+    if st.button(
+        "Logout",
+        use_container_width=True
+    ):
+
+        logout_user()
+
+        st.rerun()
+
+
+# --------------------------------------
+# MAIN SCREEN
+# --------------------------------------
+
+st.title("🛡️ AegisAI")
+
+st.subheader(
+    "Intelligent Approval & Compliance System"
+)
+
+st.write(
+    "AI-powered policy intelligence, multi-agent review, "
+    "and human-controlled approvals."
+)
+
+st.divider()
+
+st.success(
+    f"Welcome, {user.email}"
+)
+
+st.subheader(
+    "Approval Management"
+)
+
+col1, col2 = st.columns(2)
+
+
+# ======================================
+# DASHBOARD CARD
+# ======================================
+
+with col1:
+
+    st.markdown(
+        "### 📊 Dashboard"
     )
 
     st.write(
-        "AI-powered policy intelligence, multi-agent review, "
-        "and human-controlled approvals."
+        "View approval cases, their status, "
+        "and recent activity."
     )
 
-    st.divider()
+    if st.button(
+        "Open Dashboard",
+        use_container_width=True
+    ):
+
+        st.switch_page(
+            "pages/1_Dashboard.py"
+        )
+
+
+# ======================================
+# CREATE CASE CARD
+# ======================================
+
+with col2:
+
+    st.markdown(
+        "### 📝 Create Approval Case"
+    )
+
+    st.write(
+        "Create a procurement or capital "
+        "expenditure approval case."
+    )
+
+    if st.button(
+        "➕ Create New Case",
+        type="primary",
+        use_container_width=True
+    ):
+
+        st.switch_page(
+            "pages/2_Create_Case.py"
+        )
+
+
+st.divider()
+
+
+# ======================================
+# SYSTEM STATUS
+# ======================================
+
+st.subheader("System Status")
+
+col1, col2, col3 = st.columns(3)
+
+with col1:
 
     st.success(
-        f"Welcome, {user.email}"
+        "🔐 Authentication\n\nConnected"
     )
 
-    st.subheader(
-        "Approval Management"
+with col2:
+
+    st.success(
+        "🗄️ Supabase Database\n\nConnected"
     )
 
-    col1, col2 = st.columns(2)
+with col3:
 
-    # ======================================
-    # DASHBOARD CARD
-    # ======================================
+    st.info(
+        "🤖 AI Review\n\nReady"
+    )
+```
 
-    with col1:
-
-        st.markdown("### 📊 Dashboard")
-
-        st.write(
-            "View approval cases, their status, "
-            "and recent activity."
-        )
-
-        if st.button(
-            "Open Dashboard",
-            use_container_width=True
-        ):
-
-            st.switch_page(
-                "pages/1_Dashboard.py"
-            )
-
-    # ======================================
-    # CREATE CASE CARD
-    # ======================================
-
-    with col2:
-
-        st.markdown(
-            "### 📝 Create Approval Case"
-        )
-
-        st.write(
-            "Create a procurement or capital "
-            "expenditure approval case."
-        )
-
-        if st.button(
-            "➕ Create New Case",
-            type="primary",
-            use_container_width=True
-        ):
-
-            st.switch_page(
-                "pages/2_Create_Case.py"
-            )
-
-    st.divider()
-
-    # ======================================
-    # SYSTEM STATUS
-    # ======================================
-
-    st.subheader("System Status")
-
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-
-        st.success(
-            "🔐 Authentication\n\nConnected"
-        )
-
-    with col2:
-
-        st.success(
-            "🗄️ Supabase Database\n\nConnected"
-        )
-
-    with col3:
-
-        st.info(
-            "🤖 AI Review\n\nReady"
-        )
 # ==========================================
+
 # ENTRY POINT
+
 # ==========================================
 
-if "user" not in st.session_state:
+if (
+"user" not in st.session_state
+or st.session_state["user"] is None
+):
 
-    show_login()
+```
+show_login()
+```
 
 else:
 
-    show_application()
+```
+show_application()
+```
