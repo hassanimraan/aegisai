@@ -20,7 +20,7 @@ layout="wide"
 
 def show_login():
 
-```
+
 st.title("🛡️ AegisAI")
 
 st.subheader(
@@ -187,7 +187,7 @@ with tab_signup:
             else:
 
                 st.error(message)
-```
+
 
 # ==========================================
 
@@ -197,7 +197,7 @@ with tab_signup:
 
 def show_application():
 
-```
+
 user = st.session_state["user"]
 
 
@@ -387,7 +387,7 @@ with col3:
     st.info(
         "🤖 AI Review\n\nReady"
     )
-```
+
 
 # ==========================================
 
@@ -400,12 +400,12 @@ if (
 or st.session_state["user"] is None
 ):
 
-```
+
 show_login()
-```
+
 
 else:
 
-```
+
 show_application()
-```
+
