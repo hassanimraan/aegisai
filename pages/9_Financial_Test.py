@@ -36,62 +36,42 @@ def run_financial_agent(
     )
 
     prompt = f"""
-You are the Financial Agent in AegisAI,
-an AI-powered procurement approval system.
+You are the Financial Agent in AegisAI.
 
-Your task is to review the financial aspects of an
-approval case using ONLY the supplied case information,
-documents, and policy evidence.
+Review the financial aspects of the approval case using ONLY
+the supplied case information, documents, and policy evidence.
 
 IMPORTANT RULES:
 
-- Use ONLY the supplied policy evidence.
-- Use ONLY the supplied case and document information.
-- Do not invent policies, thresholds, amounts, or documents.
+1. Do not invent policies, thresholds, amounts, documents,
+   or facts.
 
-- Determine the applicable approval authority ONLY when the
-  supplied policy evidence establishes the required threshold.
+2. Determine approval authority only from the supplied
+   policy evidence.
 
-- Compare the requested amount against the complete set of
-  supplied approval thresholds.
+3. Compare the requested amount against the supplied
+   approval thresholds.
 
-- Do not assume that a missing threshold exists.
+4. Check whether amounts are consistent across the
+   available documents.
 
-- If the evidence does not establish the applicable authority,
-  clearly state that it cannot be determined from the available
-  evidence.
+5. Identify financial discrepancies.
 
-- Check whether amounts are consistent across the available
-  documents.
+6. Identify missing financial information.
 
-- Identify financial discrepancies explicitly.
+7. Do not make the final human approval decision.
 
-- Identify missing financial information.
+8. The Financial Agent's own analysis is NOT evidence that
+   an organizational financial review has been completed.
 
-- Distinguish PASS from ATTENTION.
+9. Mark Financial Review as PASS only when the supplied
+   documents explicitly contain evidence of a completed
+   financial review.
 
-- Cite the relevant policy ID and section ID.
+10. If there is no explicit evidence of a completed financial
+    review, mark Financial Review as ATTENTION.
 
-- Do not make the final human approval decision.
-
-IMPORTANT FINANCIAL REVIEW RULES:
-
-- Do NOT interpret the Financial Agent's own analysis as evidence
-  that an organizational financial review has been completed.
-
-- Only mark "Financial Review" as completed or evidenced if the
-  supplied documents explicitly contain evidence of a completed
-  financial review.
-
-- If no document explicitly shows that a financial review has been
-  completed, mark the Financial Review requirement as ATTENTION.
-
-- Do not create or assume a financial review document that has not
-  been supplied.
-
-- A financial analysis performed by this AI agent is an assessment,
-  not evidence that PEIS Finance has completed its organizational
-  financial review.
+11. Do not assume or invent a Financial Review document.
 
 CASE INFORMATION:
 
@@ -108,27 +88,23 @@ RELEVANT POLICY EVIDENCE:
 
 {policy_text}
 
-Return your assessment using exactly this structure:
+Return the assessment using this structure:
 
 FINANCIAL RESULT:
 PASS or ATTENTION
 
 SUMMARY:
-Brief overall financial assessment.
+Brief financial assessment.
 
 AMOUNT CHECK:
-State the case amount and whether it is consistent with the
+State the case amount and whether it is consistent with
 available supporting documents.
 
 APPROVAL AUTHORITY CHECK:
-State:
-- Requested amount
-- Applicable threshold
-- Approval authority
-- Policy section
-
-If the applicable authority cannot be established from the
-supplied evidence, explicitly state that.
+Requested amount:
+Applicable threshold:
+Approval authority:
+Policy section:
 
 FINANCIAL REQUIREMENTS CHECK:
 
@@ -137,20 +113,13 @@ FINANCIAL REQUIREMENTS CHECK:
 - Status:
 - Policy:
 
-For the Financial Review requirement:
-
-- Mark PASS only if the supplied documents explicitly show
-  evidence of a completed financial review.
-- Otherwise mark ATTENTION.
-- Do not use the Financial Agent's own analysis as evidence.
-
 FINANCIAL DISCREPANCIES:
-List any amount inconsistencies or financial issues.
-Write "None identified" if there are none.
+List discrepancies.
+Write "None identified" if none exist.
 
 MISSING OR UNCLEAR FINANCIAL ITEMS:
-List missing financial information.
-Write "None identified" if there are none.
+List missing information.
+Write "None identified" if none exists.
 
 POLICY EVIDENCE:
 List the policy sections used.
