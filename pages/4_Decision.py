@@ -184,11 +184,10 @@ try:
     )
 
     reviews = review_response.data or []
+    
     if reviews:
-
-    latest_review = reviews[0]
-
-    st.session_state["ai_case_review_db"] = latest_review
+        latest_review = reviews[0]
+        st.session_state["ai_case_review_db"] = latest_review
 
 except Exception as e:
 
