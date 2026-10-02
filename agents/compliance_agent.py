@@ -50,6 +50,13 @@ IMPORTANT RULES:
 - Distinguish between PASS and ATTENTION.
 - Cite the relevant policy ID and section ID.
 - If the evidence is insufficient, say so.
+- Do not infer an approval authority from incomplete threshold evidence.
+- Do not extrapolate missing approval thresholds.
+- If the exact approval authority cannot be established from the supplied
+  policy evidence, state that it cannot be determined from the available
+  evidence.
+- Exact financial thresholds and approval authority will be assessed by
+  the Financial Agent.
 - Do not make the final human approval decision.
 
 CASE INFORMATION:
@@ -77,6 +84,11 @@ REQUIREMENTS CHECK:
 - Evidence:
 - Status:
 - Policy:
+
+For approval-authority-related requirements, do not determine the exact
+approval authority. State that approval authority assessment is deferred
+to the Financial Agent unless the supplied policy evidence explicitly
+establishes the authority.
 
 MISSING OR UNCLEAR ITEMS:
 List missing or unclear requirements.
