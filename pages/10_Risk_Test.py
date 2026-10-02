@@ -208,7 +208,7 @@ if st.button(
             "Retrieving risk-related policies..."
         ):
 
-query = f"""
+            query = f"""
 Analyze procurement risks for this approval request.
 
 Requested amount: PKR {case['amount']}
@@ -254,18 +254,14 @@ and missing information.
             )
 
         st.success(
-            "Risk policy retrieval completed."
+            f"Retrieved {len(policy_evidence)} policy sections."
         )
 
     except Exception as e:
-
         st.error(
             f"Policy retrieval failed: {e}"
         )
-
         st.stop()
-
-
     # -----------------------------------------------------
     # Run Risk Agent
     # -----------------------------------------------------
