@@ -285,15 +285,46 @@ st.write(
     "or applicable PEIS policies."
 )
 
+
 # ---------------------------------------------------------
-# Initialize chat history
+# Load Case Documents
+# ---------------------------------------------------------
+
+try:
+
+    documents_response = (
+        supabase
+        .table("documents")
+        .select("*")
+        .eq(
+            "case_id",
+            case["id"]
+        )
+        .execute()
+    )
+
+    documents = documents_response.data or []
+
+except Exception as e:
+
+    st.error(
+        f"Unable to load case documents: {e}"
+    )
+
+    documents = []
+
+
+# ---------------------------------------------------------
+# Initialize Chat History
 # ---------------------------------------------------------
 
 if "decision_chat_messages" not in st.session_state:
+
     st.session_state["decision_chat_messages"] = []
 
+
 # ---------------------------------------------------------
-# Display previous messages
+# Display Previous Messages
 # ---------------------------------------------------------
 
 for message in st.session_state["decision_chat_messages"]:
@@ -304,21 +335,24 @@ for message in st.session_state["decision_chat_messages"]:
             message["content"]
         )
 
+
 # ---------------------------------------------------------
-# Chat input
+# Chat Input
 # ---------------------------------------------------------
 
 question = st.chat_input(
     "Ask about this case or its applicable policies..."
 )
 
+
 # ---------------------------------------------------------
-# Process question
+# Process Question
 # ---------------------------------------------------------
 
 if question:
 
     # Save user message
+
     st.session_state["decision_chat_messages"].append(
         {
             "role": "user",
@@ -327,163 +361,11 @@ if question:
     )
 
     with st.chat_message("user"):
+
         st.write(question)
 
+
     try:
-
-        # -------------------------------------------------
-        # Retrieve relevant policy evidence
-        # -------------------------------------------------
-
-        policy_results = retrieve_policy_evidence(
-            question,
-            top_k=6
-        )
-
-        policy_evidence = "\n\n".join(
-            [
-                (
-                    f"Policy: {item.get('policy_id')}\n"
-                    f"Section: {item.get('section_id')}\n"
-                    f"Content: {item.get('content')}"
-                )
-                for item in policy_results
-            ]
-        )
-
-        # -------------------------------------------------
-        # Prepare case documents
-        # -------------------------------------------------
-
-        document_evidence = "\n\n".join(
-            [
-                (
-                    f"Document: {doc.get('document_name')}\n"
-                    f"Type: {doc.get('document_type')}\n"
-                    f"Content:\n{doc.get('extracted_text', '')}"
-                )
-                for doc in documents
-            ]
-        )
-
-        # -------------------------------------------------
-        # Chatbot prompt
-        # -------------------------------------------------
-
-        chatbot_prompt = f"""
-You are the AegisAI Review Assistant.
-
-Answer the user's question using ONLY:
-
-1. Case information
-2. Supplied case documents
-3. Retrieved PEIS policy evidence
-4. The completed AI review
-
-Do not invent facts, policies, documents, approvals,
-financial information, or organizational rules.
-
-If the available evidence is insufficient, clearly say:
-
-"That cannot be determined from the available evidence."
-
-When referring to policies, cite the relevant policy ID
-and section ID where available.
-
-Do not make the final human approval decision.
-
--------------------------------------------------
-CASE INFORMATION
--------------------------------------------------
-
-Title: {case.get("title")}
-Department: {case.get("department")}
-Amount: PKR {case.get("amount")}
-Description: {case.get("description")}
-
--------------------------------------------------
-SUPPLIED DOCUMENTS
--------------------------------------------------
-
-{document_evidence}
-
--------------------------------------------------
-AI REVIEW
--------------------------------------------------
-
-{test_synthesis if 'test_synthesis' in locals() else synthesis}
-
--------------------------------------------------
-POLICY EVIDENCE
--------------------------------------------------
-
-{policy_evidence}
-
--------------------------------------------------
-USER QUESTION
--------------------------------------------------
-
-{question}
-"""
-
-        # -------------------------------------------------
-        # Call Gemini ONLY when user asks a question
-        # -------------------------------------------------
-
-        from google import genai
-        from config.settings import get_gemini_api_key
-
-        client = genai.Client(
-            api_key=get_gemini_api_key()
-        )
-
-        response = client.models.generate_content(
-            model="gemini-3.6-flash",
-            contents=chatbot_prompt
-        )
-
-        answer = response.text
-
-        # -------------------------------------------------
-        # Display assistant response
-        # -------------------------------------------------
-
-        with st.chat_message("assistant"):
-            st.write(answer)
-
-        # Save assistant response
-        st.session_state["decision_chat_messages"].append(
-            {
-                "role": "assistant",
-                "content": answer
-            }
-        )
-
-    except Exception as e:
-
-        st.error(
-            f"Unable to answer the question: {e}"
-        )
-
-        # -------------------------------------------------
-        # Load Documents
-        # -------------------------------------------------
-
-        documents_response = (
-            supabase
-            .table("documents")
-            .select("*")
-            .eq(
-                "case_id",
-                case["id"]
-            )
-            .execute()
-        )
-
-        documents = (
-            documents_response.data or []
-        )
-
 
         # -------------------------------------------------
         # Retrieve Policy Evidence
@@ -515,7 +397,7 @@ USER QUESTION
             [
                 f"DOCUMENT: {doc['document_name']}\n"
                 f"TYPE: {doc['document_type']}\n"
-                f"CONTENT:\n{doc['extracted_text']}"
+                f"CONTENT:\n{doc.get('extracted_text', '')}"
                 for doc in documents
             ]
         )
@@ -529,8 +411,7 @@ USER QUESTION
             [
                 f"{message['role'].upper()}: "
                 f"{message['content']}"
-                for message
-                in st.session_state[
+                for message in st.session_state[
                     "decision_chat_messages"
                 ][-6:]
             ]
@@ -538,13 +419,8 @@ USER QUESTION
 
 
         # -------------------------------------------------
-        # Gemini
+        # Gemini Prompt
         # -------------------------------------------------
-
-        client = genai.Client(
-            api_key=get_gemini_api_key()
-        )
-
 
         prompt = f"""
 You are the AegisAI Review Assistant.
@@ -556,7 +432,7 @@ Your answers MUST be grounded ONLY in:
 1. The supplied case information
 2. The supplied case documents
 3. The retrieved PEIS policy evidence
-4. The supplied AI review
+4. The completed AI review
 
 Do not invent policies, facts, documents, approvals,
 financial reviews, vendor information, or requirements.
@@ -567,7 +443,7 @@ If the available evidence is insufficient, clearly say:
 
 Do not make the final approval decision.
 
-The human reviewer must remain responsible for
+The human reviewer remains responsible for:
 Approve / Return / Reject.
 
 ==================================================
@@ -600,22 +476,22 @@ RETRIEVED POLICY EVIDENCE
 
 
 ==================================================
-AI REVIEW
+COMPLETED AI REVIEW
 ==================================================
 
 {review.get("synthesis", "")}
 
 
 ==================================================
-CONVERSATION
+PREVIOUS CONVERSATION
 ==================================================
 
 {chat_history}
 
 
 ==================================================
-
-USER QUESTION:
+USER QUESTION
+==================================================
 
 {question}
 
@@ -630,6 +506,15 @@ Do not provide a final human decision.
 """
 
 
+        # -------------------------------------------------
+        # Gemini
+        # -------------------------------------------------
+
+        client = genai.Client(
+            api_key=get_gemini_api_key()
+        )
+
+
         response = client.models.generate_content(
             model=MODEL,
             contents=prompt
@@ -638,6 +523,17 @@ Do not provide a final human decision.
 
         answer = response.text
 
+
+        # -------------------------------------------------
+        # Display Assistant Response
+        # -------------------------------------------------
+
+        with st.chat_message("assistant"):
+
+            st.write(answer)
+
+
+        # Save assistant response
 
         st.session_state[
             "decision_chat_messages"
@@ -649,16 +545,14 @@ Do not provide a final human decision.
         )
 
 
-        with st.chat_message("assistant"):
-            st.write(answer)
-
-
     except Exception as e:
 
         st.error(
             f"Assistant failed: {e}"
         )
 
+
+st.divider()
 
 st.divider()
 
