@@ -275,7 +275,32 @@ and missing information.
                 financial_result,
                 risk_result
             )
+        # -------------------------------------------------
+        # Save AI Review
+        # -------------------------------------------------
 
+        try:
+
+            supabase.table("ai_reviews").insert(
+                {
+                    "case_id": case["id"],
+                    "compliance_result": compliance_result,
+                    "financial_result": financial_result,
+                    "risk_result": risk_result,
+                    "synthesis": decision_result,
+                    "recommendation": decision_result
+                }
+            ).execute()
+
+            st.success(
+                "AI review saved successfully."
+            )
+
+        except Exception as e:
+
+            st.error(
+                f"Unable to save AI review: {e}"
+            )
 
         # -------------------------------------------------
         # Display Results
