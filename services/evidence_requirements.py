@@ -514,8 +514,23 @@ def determine_requirements(
     documents = documents or []
     policy_evidence = policy_evidence or []
 
-    if not policy_evidence:
-        return []
+   if not policy_evidence:
+       return [
+           _make_requirement(
+               requirement_id="applicable_policy_evidence",
+               name="Applicable Policy Evidence",
+               document_type=None,
+               mandatory=True,
+               reason=(
+                   "AegisAI could not retrieve applicable policy "
+                   "evidence for this case. The Evidence Gate cannot "
+                   "be completed until applicable policy evidence is "
+                   "available."
+               ),
+               status="MISSING",
+               evidence_rule="RAG policy retrieval required",
+           )
+       ]
 
     amount = _amount(case_data)
 
