@@ -1,4 +1,5 @@
 import streamlit as st
+import json
 
 from database.supabase_client import get_supabase
 from rag.retriever import search_policies
@@ -189,7 +190,6 @@ try:
 
         latest_review = reviews[0]
 
-        # Keep database review available in session
         st.session_state["ai_case_review_db"] = latest_review
 
 except Exception as e:
@@ -215,7 +215,6 @@ if not reviews:
     st.stop()
 
 
-# Use the latest persisted database review
 review = reviews[0]
 
 
@@ -345,7 +344,6 @@ if send_question and question.strip():
         st.write(
             question
         )
-
 
     try:
 
@@ -496,12 +494,10 @@ Do not provide a final human decision.
             api_key=get_gemini_api_key()
         )
 
-
         response = client.models.generate_content(
             model=MODEL,
             contents=prompt
         )
-
 
         answer = response.text
 
@@ -542,7 +538,7 @@ st.divider()
 
 
 # ---------------------------------------------------------
-# Human Decision
+# Human Final Decision
 # ---------------------------------------------------------
 
 st.subheader("👤 Human Final Decision")
@@ -552,69 +548,6 @@ st.warning(
     "The final decision must be made by the human reviewer."
 )
 
-# ---------------------------------------------------------
-# Evidence Gate Protection
-# ---------------------------------------------------------
-
-gate = review.get(
-    "evidence_gate"
-)
-
-if isinstance(gate, str):
-    import json
-
-    try:
-        gate = json.loads(gate)
-    except Exception:
-        gate = {}
-
-if not isinstance(gate, dict):
-    gate = {}
-
-if not gate.get("complete", False):
-
-    st.error(
-        "🔴 FINAL DECISION LOCKED"
-    )
-
-    st.warning(
-        "Mandatory policy-required evidence is incomplete. "
-        "Please upload the missing evidence and run AI Case "
-        "Review again before making the final decision."
-    )
-
-    st.subheader("Missing Evidence")
-
-    missing = gate.get(
-        "missing",
-        []
-    )
-
-if not isinstance(missing, list):
-    missing = []
-
-    if missing:
-
-        for item in missing:
-
-            st.write(
-                f"• **{item.get('name', 'Requirement')}**"
-            )
-
-            if item.get("reason"):
-
-                st.caption(
-                    item["reason"]
-                )
-
-    else:
-
-        st.info(
-            "The Evidence Gate is incomplete, "
-            "but no specific missing requirement was returned."
-        )
-
-    st.stop()
 
 # ---------------------------------------------------------
 # Check Existing Human Decision
@@ -693,11 +626,31 @@ else:
     # -----------------------------------------------------
 
     gate = review.get(
-        "evidence_gate",
-        {}
+        "evidence_gate"
     )
 
-    if not gate.get("complete", False):
+    # Supabase may return JSONB as a dictionary.
+    # Handle string JSON safely as well.
+    if isinstance(gate, str):
+
+        try:
+
+            gate = json.loads(gate)
+
+        except Exception:
+
+            gate = {}
+
+
+    if not isinstance(gate, dict):
+
+        gate = {}
+
+
+    if not gate.get(
+        "complete",
+        False
+    ):
 
         st.error(
             "🔴 FINAL DECISION LOCKED"
@@ -709,12 +662,22 @@ else:
             "Review again before making the final decision."
         )
 
-        st.subheader("📋 Missing Evidence")
+        st.subheader(
+            "📋 Missing Evidence"
+        )
 
         missing = gate.get(
             "missing",
             []
         )
+
+        if not isinstance(
+            missing,
+            list
+        ):
+
+            missing = []
+
 
         if missing:
 
@@ -734,13 +697,15 @@ else:
 
             st.info(
                 "The Evidence Gate is incomplete, "
-                "but no specific missing requirement was returned."
+                "but no specific missing requirement "
+                "was returned."
             )
 
         st.stop()
 
+
     # -----------------------------------------------------
-    # Evidence complete → allow human decision
+    # Evidence Complete
     # -----------------------------------------------------
 
     decision = st.radio(
@@ -753,10 +718,24 @@ else:
         horizontal=True
     )
 
+
     comments = st.text_area(
         "Reviewer Comments",
         placeholder="Enter your decision comments..."
     )
+
+
+    if decision in [
+        "Return",
+        "Reject"
+    ] and not comments.strip():
+
+        st.info(
+            "Reviewer comments are required for "
+            "Return or Reject."
+        )
+
+
     # -----------------------------------------------------
     # Submit Decision
     # -----------------------------------------------------
@@ -767,7 +746,10 @@ else:
         use_container_width=True
     ):
 
-        if decision in ["Return", "Reject"] and not comments.strip():
+        if decision in [
+            "Return",
+            "Reject"
+        ] and not comments.strip():
 
             st.error(
                 "Please enter reviewer comments."
@@ -782,7 +764,9 @@ else:
             # Save Human Decision
             # -------------------------------------------------
 
-            supabase.table("decisions").insert(
+            supabase.table(
+                "decisions"
+            ).insert(
                 {
                     "case_id": current_case_id,
                     "reviewer_id": st.session_state["user"].id,
@@ -802,10 +786,14 @@ else:
                 "Reject": "REJECTED"
             }
 
-            new_status = status_map[decision]
+            new_status = status_map[
+                decision
+            ]
 
 
-            supabase.table("cases").update(
+            supabase.table(
+                "cases"
+            ).update(
                 {
                     "status": new_status
                 }
@@ -819,13 +807,19 @@ else:
             # Create Audit Log
             # -------------------------------------------------
 
-            supabase.table("audit_logs").insert(
+            supabase.table(
+                "audit_logs"
+            ).insert(
                 {
                     "case_id": current_case_id,
                     "user_id": st.session_state["user"].id,
-                    "action": f"HUMAN_DECISION_{decision.upper()}",
+                    "action": (
+                        f"HUMAN_DECISION_"
+                        f"{decision.upper()}"
+                    ),
                     "details": (
-                        f"Human reviewer selected {decision}. "
+                        f"Human reviewer selected "
+                        f"{decision}. "
                         f"Comments: "
                         f"{comments.strip() or 'None'}"
                     )
@@ -838,7 +832,8 @@ else:
             # -------------------------------------------------
 
             st.success(
-                f"✅ Human decision saved successfully: {decision}"
+                f"✅ Human decision saved successfully: "
+                f"{decision}"
             )
 
             st.info(
