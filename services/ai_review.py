@@ -28,10 +28,10 @@ def run_ai_case_review(case_data, documents):
     Description:
     {case_data.get("description", "")}
 
-    Identify all PEIS policies and sections applicable
-    to this case, especially procurement, financial approval,
+    Identify the PEIS policy sections applicable
+    to this case, including procurement, financial approval,
     delegation of authority, technical evaluation,
-    comparative statement, quotations, financial review,
+    quotations, comparative statement, financial review,
     vendor evaluation, and conflict of interest where relevant.
     """
 
@@ -70,8 +70,6 @@ def run_ai_case_review(case_data, documents):
 
     synthesis = run_decision_synthesizer(
         case_data,
-        documents,
-        policy_evidence,
         compliance,
         financial,
         risk
