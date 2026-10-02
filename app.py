@@ -259,13 +259,23 @@ def show_application():
 
     with col2:
 
-        st.markdown(
-            "### 📝 Create Approval Case"
-        )
+    st.markdown(
+        "### 📝 Create Approval Case"
+    )
 
-        st.write(
-            "Create a procurement or capital "
-            "expenditure approval case."
+    st.write(
+        "Create a procurement or capital "
+        "expenditure approval case."
+    )
+
+    if st.button(
+        "➕ Create New Case",
+        type="primary",
+        use_container_width=True
+    ):
+
+        st.switch_page(
+            "pages/2_Create_Case.py"
         )
 
     st.divider()
