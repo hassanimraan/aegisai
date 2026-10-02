@@ -355,7 +355,7 @@ send_question = st.button(
 # Process Question
 # ---------------------------------------------------------
 
-if question:
+if send_question and question.strip():
 
     # Save user message
 
