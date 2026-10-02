@@ -20,7 +20,6 @@ layout="wide"
 
 def show_login():
 
-
 st.title("🛡️ AegisAI")
 
 st.subheader(
