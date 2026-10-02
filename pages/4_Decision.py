@@ -22,7 +22,10 @@ st.set_page_config(
 # Authentication
 # ---------------------------------------------------------
 
-if "user" not in st.session_state:
+if (
+    "user" not in st.session_state
+    or st.session_state["user"] is None
+):
 
     st.warning(
         "Please log in from the main AegisAI page."
